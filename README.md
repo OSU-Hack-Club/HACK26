@@ -43,6 +43,7 @@ src/
   lib/concierge/     estimate model + copy, risk indicators (risk.ts), feature contract (features.ts), map-data derivation
   data/map-data.json simplified CIR2 lines + ARCOS damage points (from Data1.zip)
   data/risk-features.json  demo premise features built by `npm run data:risk` (see DEVELOPMENT.md)
+  data/restoration.json    labor standards behind the restoration estimate, built by `npm run data:restoration`
 scripts/data/        shapefile readers + the risk-feature pipeline
   lib/utils.ts       cn() helper
   env.ts             typed env
@@ -89,3 +90,4 @@ unzip -n data/raw/matched_upstream.zip -d data/extracted/matched_upstream
 | `npm run typecheck` | TypeScript check |
 | `npm run data:extract` | Unzip the challenge archives into `AEP-Challenge-Materials/data/extracted` |
 | `npm run data:risk` | Rebuild `src/data/risk-features.json` from the extracted data and print the level mix + backtest ([DEVELOPMENT.md](DEVELOPMENT.md)) |
+| `npm run data:restoration` | Rebuild `src/data/restoration.json` (labor hours, adders, ILM from `Install_Labor_HackOHIO.xlsx`; access shares from ARCOS) |

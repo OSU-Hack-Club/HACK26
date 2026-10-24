@@ -3,6 +3,7 @@
 Working notes for anyone (human or agent) changing the Outage Concierge. Read the section for the area you touch before editing. `README.md` covers setup; `AGENTS.md` covers Next.js and map UI rules; the challenge brief is `Main-Challenge.pdf`.
 
 - [Risk data: how the outage chance is calculated](#risk-data-how-the-outage-chance-is-calculated)
+- [Restoration estimate](#restoration-estimate)
 - [Challenge data reference](#challenge-data-reference)
 - [Changing the model safely](#changing-the-model-safely)
 - [Making the data dynamic](#making-the-data-dynamic)
@@ -124,6 +125,50 @@ Demo premises: P-20417 Maple Grove (CIR22, medium), P-33810 Riverside (CIR85, mi
 
 ---
 
+## Restoration estimate
+
+```
+AEP-Challenge-Materials/data/Install_Labor_HackOHIO.xlsx  +  ARCOS (extracted Data1)
+  │  npm run data:restoration      (scripts/data/build-restoration.mjs + RESTORATION in config.mjs)
+  │    reads the workbook with scripts/data/lib/xlsx.mjs (no dependencies)
+  ▼
+src/data/restoration.json          (committed, ~1 KB: labor averages and aggregate shares only)
+  ▼
+src/lib/concierge/restoration.ts   estimate() → wait / road / repair / switch / mid, damage sites, crews working
+  ▼
+src/lib/concierge/model.ts         model().e, segments(), movers(), stepText(), laborText(), ASSUME_TEXT
+  ▼
+UI: Restoration Estimate card (home.tsx) with "Try a What-If" (what-if.tsx), chat "how long" answer, messages
+```
+
+**Labor (from the workbook).** Each damage type is a bill of materials in `RESTORATION.jobs` (config.mjs). A part points at a block in the workbook by its title cell, e.g. `"Pole CU Average Hours by Size"` row `Size Group = Medium`. Hours per part = qty × (avg install + avg removal), because a storm repair replaces the broken unit. Current values: broken pole 5.29 h (pole 40–55 ft, crossarm, 3 insulators, 3 pins, grounding), downed wire span 0.86 h (2 dead-ends, 2 connectors), transformer 3.23 h (25 kVA, cutout, leads), fuse only 0.26 h. Access adders come from "Labor only work": limited = Access Constraint Adder (0.5 h per site), blocked = Remote Location Adder (1.312 h per site). Every labor hour is multiplied by the Indirect Labor Multiplier (4.5).
+
+**ARCOS.** Report and repair dates are day-level only, and open repairs carry a placeholder date, so they can't calibrate hours. The build keeps only aggregate shares: 32% of reports had access issues and 17% needed special equipment. The UI shows the first next to the road-access what-if.
+
+**Assumptions** (`ASSUME` in restoration.ts; all disclosed in the card under "How We Calculated This"):
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `crewSize` | 3 | CU hours are person-hours. A crew is 3 line workers and works one site at a time. |
+| `wait` | 1 + 6 × storm strength (+1.5 rural) | Hours until a crew reaches you. |
+| `roadHours` | 0 / 1 / 4 | Clearing debris or fallen trees before work starts. |
+| `switchHours` | 1 | Isolating the damage and switching a healthy section back on. |
+
+**Sites and crews.** Each broken pole and the transformer is its own site, and all downed spans count as one stretch of line. With no damage entered, a blown fuse is one site. Sites are assigned longest-first to the least-loaded crew, and the repair time is when the last crew finishes. This means extra crews beyond the number of sites don't help, and the UI says so.
+
+**Upstream dependencies and step restoration** (`canStepRestore`). The `where` input places the damage relative to the customer:
+- `street`: on the customer's own branch. Only the repair restores power.
+- `branch`: on a neighboring branch that tripped a device the customer shares. Crews open that branch's fuse and re-close, so the customer is back after `switchHours`.
+- `main`: upstream on the main line. Only a tie switch (`hasTie`, `Premise.backfeed`) can feed the customer from another circuit. Otherwise they wait for the repair.
+
+When `reroute` ("Restore in steps") is on and step restoration applies, `mid = wait + road + switchHours`, and the card says repairs continue afterward.
+
+**Confirmed vs model.** `DEF` is the reported damage (or typical damage before the storm). Confirmed copy (`facts()`, What Happened) always uses `DEF`. The estimate card uses the customer's inputs and shows a "What-If Estimate" badge whenever they differ from `DEF` (`whatIfActive`).
+
+**Change a constant:** edit `RESTORATION` in config.mjs (bill of materials, adders) and run `npm run data:restoration`, or edit `ASSUME` in restoration.ts. Keep `ASSUME_TEXT` in model.ts in sync, because it is the customer-facing disclosure.
+
+---
+
 ## Challenge data reference
 
 Everything below was checked against the extracted files. Field names are truncated to 10 characters by the dBASE format.
@@ -146,7 +191,7 @@ Everything below was checked against the extracted files. Field names are trunca
 | Secondary_ExportFeatures | 127,403 | mounting, report_len | not used yet |
 | Hospitals / Fire_Stations / Ambulance | 5 / 37 / 10 | NAME, ADDRESS | **Web Mercator** .prj (readLayer converts); public data, but don't pin them precisely in customer UI |
 
-`Install_Labor_HackOHIO.xlsx` sheets: CNC, Labor time material related, Labor only work, Indirect Labor Multiplier, CU Group descriptions. The restoration estimate in `model.ts` does not read it yet (see Known gaps).
+`Install_Labor_HackOHIO.xlsx` sheets: CNC, Labor time material related, Labor only work, Indirect Labor Multiplier, CU Group descriptions. Read by `npm run data:restoration` (see [Restoration estimate](#restoration-estimate)).
 
 ---
 
@@ -197,7 +242,7 @@ The UI only depends on the `RiskDataset` shape (features.ts) and the scenario in
 
 ## Known gaps
 
-- **Restoration estimate** (`model()` `est`) still uses inline labor constants. Next steps: read `Install_Labor_HackOHIO.xlsx` (including the Indirect Labor Multiplier sheet) into the dataset the same way, and use ARCOS `Repaired_D − Report_Tim`, `Access_Iss`, and `Special_Eq` for duration and access effects.
+- **Restoration estimate:** crew size, arrival time, road-clearing and switching times are stated assumptions, not data. ARCOS repair dates are day-level, so durations aren't calibrated against them. The damage location is a what-if input, not traced from a real fault on the topology.
 - **Map location** (`map-data.ts`, `src/data/map-data.json`) is a separate, older derivation (densest Feb 2025 cluster) and is not tied to the selected demo premise.
 - **No vegetation or wind history** in the package. `trees` always uses its prior, and the 70 mph "rare storm" cutoff is an assumption.
 - **Damage-to-device snapping** is approximate. Backbone damage snapped to a lateral premise is credited to the lateral fuse, not the upstream recloser.

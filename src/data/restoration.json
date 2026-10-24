@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-24",
+  "sources": [
+    "Install_Labor_HackOHIO.xlsx",
+    "arcos_prod_damage_09_28_Clip"
+  ],
+  "ilm": 4.5,
+  "jobs": {
+    "pole": {
+      "label": "Replace a broken pole",
+      "hours": 5.292,
+      "parts": [
+        {
+          "name": "Pole, 40–55 ft",
+          "qty": 1,
+          "hours": 3.43
+        },
+        {
+          "name": "Crossarm",
+          "qty": 1,
+          "hours": 0.586
+        },
+        {
+          "name": "Insulators",
+          "qty": 3,
+          "hours": 0.266
+        },
+        {
+          "name": "Insulator pins",
+          "qty": 3,
+          "hours": 0.325
+        },
+        {
+          "name": "Grounding",
+          "qty": 1,
+          "hours": 0.685
+        }
+      ]
+    },
+    "span": {
+      "label": "Re-hang one span of downed wire",
+      "hours": 0.863,
+      "parts": [
+        {
+          "name": "Dead-ends",
+          "qty": 2,
+          "hours": 0.343
+        },
+        {
+          "name": "Connectors",
+          "qty": 2,
+          "hours": 0.52
+        }
+      ]
+    },
+    "xfmr": {
+      "label": "Replace a pole-mounted transformer",
+      "hours": 3.234,
+      "parts": [
+        {
+          "name": "Transformer, 25 kVA",
+          "qty": 1,
+          "hours": 1.994
+        },
+        {
+          "name": "Fuse cutout",
+          "qty": 1,
+          "hours": 0.384
+        },
+        {
+          "name": "Equipment leads",
+          "qty": 1,
+          "hours": 0.856
+        }
+      ]
+    },
+    "fuse": {
+      "label": "Replace a blown fuse",
+      "hours": 0.256,
+      "parts": [
+        {
+          "name": "Fuse cutout",
+          "qty": 1,
+          "hours": 0.256
+        }
+      ]
+    }
+  },
+  "adders": {
+    "limited": 0.5,
+    "blocked": 1.312
+  },
+  "history": {
+    "reports": 1658,
+    "accessIssueShare": 0.323,
+    "specialEquipmentShare": 0.172
+  }
+}

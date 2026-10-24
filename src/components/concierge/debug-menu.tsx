@@ -5,7 +5,7 @@ import { BugIcon, ChevronDownIcon, MinusIcon, PlusIcon, RotateCcwIcon } from "lu
 import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
-import { ORDER, PREMISES, SC, TONE, timeText, type Access } from "@/lib/concierge/model";
+import { ORDER, PREMISES, SC, TONE, WHERE, timeText, type Access, type DamageWhere } from "@/lib/concierge/model";
 import { RISK, RISK_ORDER, type RiskLevel } from "@/lib/concierge/risk";
 import { useConcierge, type Screen } from "@/components/concierge/store";
 
@@ -201,12 +201,20 @@ export function DebugMenu() {
                 <Num label="Wires" value={state.spans} min={0} max={10} onChange={(spans) => set({ spans })} />
                 <Num label="Crews" value={state.crews} min={1} max={6} onChange={(crews) => set({ crews })} />
                 <Toggle label="Transformer" checked={state.xfmr} onChange={(xfmr) => set({ xfmr })} />
-                <Toggle label="Reroute" checked={state.reroute} onChange={(reroute) => set({ reroute })} />
+                <Toggle label="Restore in steps" checked={state.reroute} onChange={(reroute) => set({ reroute })} />
               </div>
             </Field>
 
             <Field label="Road access">
               <Seg value={state.access} options={ACCESS} onChange={(access) => set({ access })} />
+            </Field>
+
+            <Field label="Damage location" hint={m.e.stepped ? "step restore" : undefined}>
+              <Seg<DamageWhere>
+                value={state.where}
+                options={(["street", "branch", "main"] as const).map((id) => ({ id, label: WHERE[id].label }))}
+                onChange={(where) => set({ where })}
+              />
             </Field>
 
             <Field label="Customer">

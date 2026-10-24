@@ -27,6 +27,50 @@ export const CONFIG = {
 };
 
 /**
+ * Restoration labor (scripts/data/build-restoration.mjs → src/data/restoration.json). Each job is the bill of
+ * materials for one kind of storm damage. A part names a block in the labor workbook by its title cell
+ * (sheet "Labor time material related" unless `sheet` is set), optionally the row to use (`row`: header → value),
+ * how many units, and whether the old unit is removed first (`removal`, default true: a storm repair replaces it).
+ */
+export const RESTORATION = {
+  xlsx: "AEP-Challenge-Materials/data/Install_Labor_HackOHIO.xlsx",
+  out: "src/data/restoration.json",
+  jobs: {
+    pole: {
+      label: "Replace a broken pole",
+      parts: [
+        { name: "Pole, 40–55 ft", block: "Pole CU Average Hours by Size", row: { "Size Group": "Medium" }, qty: 1 },
+        { name: "Crossarm", block: "Crossarm CU Average Hours", qty: 1 },
+        { name: "Insulators", block: "Insulator CU Average Hours", qty: 3 },
+        { name: "Insulator pins", block: "Pin CU Average Hours", qty: 3 },
+        { name: "Grounding", block: "Grounding CU Average Hours", qty: 1 },
+      ],
+    },
+    span: {
+      label: "Re-hang one span of downed wire",
+      parts: [
+        { name: "Dead-ends", block: "Dead-End CU Average Hours", qty: 2 },
+        { name: "Connectors", block: "Connector CU Average Hours", sheet: "CNC", qty: 2 },
+      ],
+    },
+    xfmr: {
+      label: "Replace a pole-mounted transformer",
+      parts: [
+        { name: "Transformer, 25 kVA", block: "Transformer CU Average Hours by Size", row: { "Size (kVA)": 25 }, qty: 1 },
+        { name: "Fuse cutout", block: "Fuse Cutout Average Hours", qty: 1 },
+        { name: "Equipment leads", block: "Equipment Lead CU Average Hours", qty: 1 },
+      ],
+    },
+    fuse: {
+      label: "Replace a blown fuse",
+      parts: [{ name: "Fuse cutout", block: "Fuse Cutout Average Hours", qty: 1, removal: false }],
+    },
+  },
+  /** Per-site labor adders ("Labor only work" sheet, column A) for each road-access what-if. */
+  adders: { limited: "Access Constraint Adder", blocked: "Remote Location Adder" },
+};
+
+/**
  * Demo premises shipped to the app. Each binds a public demo ID and a fictional area name to one
  * real (never exported) premise picked by rule, so the profile is real but the identity is not.
  * `pick` filters candidates, `rank` orders them (highest wins). `n(key)` is the 0–1 scaled feature and

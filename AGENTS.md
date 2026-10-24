@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Risk data and model
 
-Read `DEVELOPMENT.md` before changing anything in `scripts/data/`, `src/data/risk-features.json`, or `src/lib/concierge/{features,risk,model}.ts`. It documents the data pipeline, the feature contract, the indicator weights, the invariants, and the privacy rules. After changing indicators, thresholds, or the pipeline, run `npm run data:risk` and commit the regenerated JSON.
+Read `DEVELOPMENT.md` before changing anything in `scripts/data/`, `src/data/{risk-features,restoration}.json`, or `src/lib/concierge/{features,risk,restoration,model}.ts`. It documents the data pipeline, the feature contract, the indicator weights, the invariants, and the privacy rules. After changing indicators, thresholds, or the pipeline, run `npm run data:risk` and commit the regenerated JSON.
 
 ## Icons
 

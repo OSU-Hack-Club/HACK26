@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ArrowRightIcon,
+  CalculatorIcon,
   ChevronDownIcon,
   CircleHelpIcon,
   ClockIcon,
@@ -11,6 +12,7 @@ import {
   InfoIcon,
   LightbulbIcon,
   MapPinIcon,
+  SlidersHorizontalIcon,
   TargetIcon,
   TriangleAlertIcon,
   TruckIcon,
@@ -25,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
+  ASSUME_TEXT,
+  DEF,
   RISK,
   type RiskLevel,
   LEGENDS,
@@ -38,9 +42,15 @@ import {
   timeText,
   restoredAt,
   damageText,
+  laborText,
+  movers,
+  moveText,
+  stepText,
   weather,
   when,
+  whatIfActive,
 } from "@/lib/concierge/model";
+import { WhatIfControls } from "@/components/concierge/what-if";
 import { OutageMap } from "@/components/concierge/outage-map";
 import { ChanceBattery, PowerBattery, type PowerState } from "@/components/concierge/power-battery";
 import {
@@ -265,7 +275,7 @@ export function WhatHappened() {
         <p className="text-pretty text-muted-foreground">
           {sc === "restoring"
             ? "Power has been rerouted to homes upstream of you. The remaining repairs are the last step before your power comes back."
-            : `About 1,240 homes are out, so it isn’t just you, and you don’t need to report it. Crews have reported ${damageText(state)}.`}
+            : `About 1,240 homes are out, so it isn’t just you, and you don’t need to report it. Crews have reported ${damageText(DEF)}.`}
         </p>
         <SafetyNote />
       </Panel>
@@ -364,12 +374,15 @@ export function OutageRisk() {
 
 export function RestorationEstimate() {
   const { state, m } = useConcierge();
+  const [whatIfOpen, setWhatIfOpen] = React.useState(false);
   const sc = state.scenario;
   if (sc !== "watch" && sc !== "outage" && sc !== "restoring") return null;
   const t = timeText(m);
   const segs = segments(m, state);
   const hasDelta = Math.abs(m.delta) >= 0.5;
   const later = m.delta > 0;
+  const active = whatIfActive(state);
+  const moves = movers(m, state);
   return (
     <>
       <SectionHeader>Restoration Estimate</SectionHeader>
@@ -379,7 +392,7 @@ export function RestorationEstimate() {
             <span className="flex-1 text-[13px] font-medium text-muted-foreground">
               {sc === "watch" ? "If the Power Goes Out" : sc === "restoring" ? "Updated Estimate" : "When Will It Be Back?"}
             </span>
-            <ModelEstimateBadge />
+            <ModelEstimateBadge whatIf={active} />
           </div>
           <div className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-pretty">Plan to Be Without Power Until {t.plan}</div>
           <p className="text-[13px] text-pretty text-muted-foreground">
@@ -399,10 +412,47 @@ export function RestorationEstimate() {
               style={{ background: later ? "var(--high-bg)" : "var(--low-bg)", color: later ? "var(--high-ink)" : "var(--low-ink)" }}
             >
               <Icon name={later ? "trending-up" : "trending-down"} size={15} />
-              {Math.round(Math.abs(m.delta)) || "<1"} h {later ? "later" : "sooner"} than the starting estimate
+              {Math.round(Math.abs(m.delta)) || "<1"} h {later ? "later" : "sooner"} than {sc === "watch" ? "with typical damage" : "with the reported damage"}
             </div>
           )}
+          {m.e.stepped && <p className="text-[13px] text-pretty text-muted-foreground">{stepText(m, state)}</p>}
         </div>
+        {moves.length > 0 && (
+          <div className="flex flex-col gap-2 border-t px-4 pt-3 pb-3.5">
+            <span className="text-[13px] font-medium text-muted-foreground">What Could Change It</span>
+            {moves.map((mv) => (
+              <div key={mv.t} className="flex items-center gap-2.5 text-[13px]">
+                <Icon name={mv.icon} size={15} className="text-muted-foreground" />
+                <span className="flex-1 text-pretty">{mv.t}</span>
+                <span className="font-semibold tabular-nums" style={{ color: mv.h > 0 ? "var(--high-ink)" : "var(--low-ink)" }}>
+                  {moveText(mv.h)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <Collapsible open={whatIfOpen} onOpenChange={setWhatIfOpen}>
+          <AccordionRow icon={<SlidersHorizontalIcon size={15} aria-hidden />}>Try a What-If</AccordionRow>
+          <CollapsibleContent>
+            <WhatIfControls />
+          </CollapsibleContent>
+        </Collapsible>
+        <Collapsible>
+          <AccordionRow icon={<CalculatorIcon size={15} aria-hidden />}>How We Calculated This</AccordionRow>
+          <CollapsibleContent>
+            <div className="flex flex-col gap-2 border-t px-4 pt-3 pb-3.5 text-[13px] text-pretty">
+              <p>{laborText(m)}</p>
+              <ul className="flex list-disc flex-col gap-1 pl-4 text-muted-foreground">
+                {ASSUME_TEXT.map((a) => (
+                  <li key={a}>{a}</li>
+                ))}
+              </ul>
+              <p className="text-muted-foreground">
+                The range is wider when we’re less sure about the storm. This is a model estimate. Times confirmed by AEP crews are marked “Confirmed by AEP”.
+              </p>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </Panel>
     </>
   );

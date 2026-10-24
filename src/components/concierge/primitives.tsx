@@ -184,11 +184,12 @@ export function ConfirmedBadge({ scenario, large = false }: { scenario: Scenario
   );
 }
 
-export function ModelEstimateBadge() {
+/** Marks model output. `whatIf` = built from inputs the customer changed, not the reported damage. */
+export function ModelEstimateBadge({ whatIf = false }: { whatIf?: boolean }) {
   return (
-    <span className="inline-flex h-[22px] items-center gap-1 rounded-full bg-brand-soft px-2 text-xs font-medium text-brand-ink">
+    <span className="inline-flex h-[22px] items-center gap-1 rounded-full bg-brand-soft px-2 text-xs font-medium whitespace-nowrap text-brand-ink">
       <SparklesIcon size={12} aria-hidden />
-      Model Estimate
+      {whatIf ? "What-If Estimate" : "Model Estimate"}
     </span>
   );
 }

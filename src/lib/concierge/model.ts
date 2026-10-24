@@ -15,11 +15,12 @@ import {
   type RiskContribution,
   type RiskLevel,
 } from "@/lib/concierge/risk";
+import { ASSUME, LABOR, estimate, type Access, type DamageWhere, type Estimate } from "@/lib/concierge/restoration";
 
 export { RISK, RISK_ORDER, type RiskLevel } from "@/lib/concierge/risk";
+export type { Access, DamageWhere, Estimate } from "@/lib/concierge/restoration";
 
 export type Scenario = "normal" | "watch" | "outage" | "restoring" | "restored";
-export type Access = "clear" | "limited" | "blocked";
 export type ToneKey = "low" | "mid" | "high" | "brand";
 export type Intent = "risk" | "time" | "prep" | "alerts" | "why" | "none";
 export type IconName =
@@ -35,8 +36,8 @@ export type IconName =
 export interface Premise extends PremiseRecord {
   /** Anonymized circuit name; the ID lookup also accepts it. */
   circuit: string;
-  /** Step restoration is possible (a recloser upstream or a tie switch), so rerouting shortens the repair. */
-  upstream: boolean;
+  /** The circuit has a tie switch, so crews can feed it from another circuit around main-line damage. */
+  backfeed: boolean;
   /** Rural (density at or below the 10th percentile): crews take longer to arrive. */
   remote: boolean;
 }
@@ -46,7 +47,7 @@ const NORMS = featureSource.dataset.norms;
 const toPremise = (r: PremiseRecord): Premise => ({
   ...r,
   circuit: r.features.circuit,
-  upstream: r.features.reclosersUpstream > 0 || r.features.hasTie === true,
+  backfeed: r.features.hasTie === true,
   remote: r.features.premiseDensity <= NORMS.premiseDensity.p10,
 });
 
@@ -60,10 +61,19 @@ export interface WhatIf {
   xfmr: boolean;
   crews: number;
   access: Access;
+  /** Where the damage is relative to the customer's power path. */
+  where: DamageWhere;
+  /** Crews restore in steps (isolate the damage, switch healthy sections back on) when the network allows it. */
   reroute: boolean;
 }
 
-export const DEF: WhatIf & { wind: number } = { wind: 58, poles: 2, spans: 3, xfmr: false, crews: 3, access: "clear", reroute: true };
+/** Starting what-if: the damage AEP reported (or, before the storm, typical damage for a storm on this line). */
+export const DEF: WhatIf & { wind: number } = { wind: 58, poles: 2, spans: 3, xfmr: false, crews: 3, access: "clear", where: "street", reroute: true };
+
+const WHAT_IF_KEYS = ["poles", "spans", "xfmr", "crews", "access", "where", "reroute"] as const satisfies readonly (keyof WhatIf)[];
+
+/** True when the customer has changed any damage or crew input away from the starting what-if. */
+export const whatIfActive = (s: WhatIf) => WHAT_IF_KEYS.some((k) => s[k] !== DEF[k]);
 export const ORDER: Scenario[] = ["normal", "watch", "outage", "restoring", "restored"];
 
 export interface Tone { c: string; bg: string; ink: string; edge: string }
@@ -142,8 +152,6 @@ export interface ModelInput extends WhatIf {
   riskOverride?: RiskLevel | null;
 }
 
-export interface Estimate { wait: number; road: number; repair: number; mid: number }
-
 export interface Model {
   P: Premise;
   w: number;
@@ -160,6 +168,8 @@ export interface Model {
   nowH: number;
   delta: number;
   wind: number;
+  /** The what-if the estimate was built from. */
+  input: WhatIf;
 }
 
 export function model(s: ModelInput): Model {
@@ -170,21 +180,9 @@ export function model(s: ModelInput): Model {
   const risk = assessRisk(ctx);
   const confidence = assessConfidence(ctx, risk);
   const conf = confidence.level;
-  const est = (o: WhatIf): Estimate => {
-    // Labor hours from Install_Labor_HackOHIO.xlsx: pole + crossarm, wire span, transformer.
-    let labor = o.poles * (2.5 + 0.93 + 0.59) + o.spans * 0.6 + (o.xfmr ? 2.0 : 0);
-    const sites = Math.max(1, o.poles + (o.spans > 0 ? 1 : 0) + (o.xfmr ? 1 : 0));
-    if (labor === 0) labor = 0.5;
-    if (o.access === "limited") labor += 0.5 * sites;
-    if (o.access === "blocked") labor += 1.312 * sites;
-    let repair = (labor * 4.5) / (o.crews * 3);
-    if (o.reroute && P.upstream) repair *= 0.6;
-    const wait = 1 + 6 * w + (P.remote ? 1.5 : 0);
-    const road = o.access === "blocked" ? 4 : o.access === "limited" ? 1 : 0;
-    return { wait, road, repair, mid: wait + road + repair };
-  };
-  const e = est(s);
-  const base = est(DEF);
+  const net = { storm: w, rural: P.remote, backfeed: P.backfeed };
+  const e = estimate(s, net);
+  const base = estimate(DEF, net);
   const restoring = s.scenario === "restoring";
   const spread = restoring ? 0.18 : conf === 1 ? 0.5 : conf === 2 ? 0.35 : 0.25;
   const mid = e.mid;
@@ -192,7 +190,7 @@ export function model(s: ModelInput): Model {
   const hi = Math.max(lo + 1, Math.round(mid * (1 + spread)));
   const start = s.scenario === "normal" || s.scenario === "watch" ? 21.5 : 21 + 40 / 60;
   const nowH = start + e.wait + e.road * 0.5;
-  return { P, w, risk, level: s.riskOverride ?? risk.level, confidence, conf, e, base, lo, hi, start, mid, nowH, delta: e.mid - base.mid, wind };
+  return { P, w, risk, level: s.riskOverride ?? risk.level, confidence, conf, e, base, lo, hi, start, mid, nowH, delta: e.mid - base.mid, wind, input: { poles: s.poles, spans: s.spans, xfmr: s.xfmr, crews: s.crews, access: s.access, where: s.where, reroute: s.reroute } };
 }
 
 export function timeText(m: Model) {
@@ -214,6 +212,68 @@ export function damageText(s: WhatIf) {
   return a.length ? a.join(", ").replace(/, ([^,]*)$/, " and $1") : "only a tripped fuse";
 }
 
+/** Copy for each damage location. `at` completes "the damage …". */
+export const WHERE: Record<DamageWhere, { label: string; at: string; hint: string }> = {
+  street: { label: "Your Street", at: "on your street", hint: "Only the repair brings your power back." },
+  branch: { label: "Nearby Branch", at: "on a nearby branch", hint: "It tripped equipment you share, so crews can cut it off and switch you back on." },
+  main: { label: "Main Line", at: "on the main line", hint: "You depend on it. Only a backup line from another circuit can feed you around it." },
+};
+
+/** Why step restoration does or doesn't help with this damage on this line. */
+export function stepText(m: Model, s: WhatIf) {
+  if (m.e.stepped) return `Crews can switch you back on in about ${ASSUME.switchHours} hour while repairs continue (about ${Math.round(m.e.repair)} hours of work).`;
+  if (!m.e.canStep)
+    return s.where === "main"
+      ? "Your circuit has no backup line from another circuit, so you wait for the main line repair."
+      : "Damage on your own street can’t be bypassed, so you wait for the repair.";
+  return "Crews are repairing everything before switching power back on.";
+}
+
+export interface Mover { icon: IconName; t: string; h: number }
+
+/** What would move the estimate most from here: each alternative input and how many hours it adds or saves. */
+export function movers(m: Model, s: WhatIf): Mover[] {
+  const net = { storm: m.w, rural: m.P.remote, backfeed: m.P.backfeed };
+  const delta = (o: Partial<WhatIf>) => estimate({ ...s, ...o }, net).mid - m.e.mid;
+  const list: Mover[] = [];
+  if (s.access !== "blocked") list.push({ icon: "tree-pine", t: "Fallen trees block the roads", h: delta({ access: "blocked" }) });
+  else list.push({ icon: "route", t: "Roads are cleared", h: delta({ access: "clear" }) });
+  if (!m.e.stepped) {
+    if (s.crews < 6) list.push({ icon: "truck", t: "One more crew is assigned", h: delta({ crews: s.crews + 1 }) });
+    list.push({ icon: "wrench", t: "Crews find another broken pole", h: delta({ poles: s.poles + 1 }) });
+    if (s.where !== "branch") list.push({ icon: "git-fork", t: "The damage turns out to be on a nearby branch", h: delta({ where: "branch", reroute: true }) });
+  } else {
+    list.push({ icon: "git-commit-horizontal", t: "The damage turns out to be on your street", h: delta({ where: "street" }) });
+  }
+  return list
+    .filter((x) => Math.abs(x.h) >= 0.5)
+    .sort((a, b) => Math.abs(b.h) - Math.abs(a.h))
+    .slice(0, 3);
+}
+
+/** "+3 h" / "−2 h" for a mover. */
+export const moveText = (h: number) => `${h > 0 ? "+" : "−"}${Math.round(Math.abs(h)) || "<1"} h`;
+
+/** The labor basis behind the repair time, in plain words. */
+export function laborText(m: Model) {
+  const e = m.e;
+  const idle = m.input.crews > e.working ? ` Only ${e.sites.length} damage site${e.sites.length > 1 ? "s" : ""}, so extra crews don’t help.` : "";
+  const dmg = damageText(m.input);
+  return `${dmg.charAt(0).toUpperCase()}${dmg.slice(1)}: about ${Math.round(e.personHours)} hours of work at AEP’s labor standards, including travel and setup, shared by ${e.working} crew${e.working > 1 ? "s" : ""} of ${ASSUME.crewSize}.${idle}`;
+}
+
+/** The assumptions behind the restoration estimate, in plain words (disclosed under "How We Calculated This"). */
+export const ASSUME_TEXT: string[] = [
+  `Repair time uses AEP’s labor standards for each part replaced (poles, crossarms, insulators, wire, transformers), multiplied by ${LABOR.ilm} for travel, safety briefings and setup.`,
+  `A crew is ${ASSUME.crewSize} line workers and works one damage site at a time.`,
+  `Crews take ${ASSUME.wait.base}–${ASSUME.wait.base + ASSUME.wait.storm} hours to reach you, longer in stronger storms, plus about ${ASSUME.wait.rural} hours in rural areas.`,
+  `Debris on the roads adds about ${ASSUME.roadHours.limited} hour, fallen trees about ${ASSUME.roadHours.blocked} hours, plus extra work at each site.`,
+  `Switching you back on in steps takes about ${ASSUME.switchHours} hour once crews reach the damage.`,
+];
+
+/** Past-storm context from ARCOS for the road-access what-if. */
+export const accessHistoryText = () => `In past storms here, about ${Math.round(LABOR.history.accessIssueShare * 100)}% of damage sites were hard to reach.`;
+
 export interface Segment { label: string; h: number; color: string; op: number; pct: string; hText: string }
 
 export function segments(m: Model, s: WhatIf & { scenario: Scenario }): Segment[] {
@@ -221,7 +281,9 @@ export function segments(m: Model, s: WhatIf & { scenario: Scenario }): Segment[
   return [
     { label: done ? "Crew reached you (done)" : "Waiting for a crew to reach you", h: m.e.wait, color: "var(--chart-2)", op: done ? 0.35 : 1 },
     { label: "Clearing roads to the damage", h: m.e.road, color: "var(--mid)", op: 1 },
-    { label: `Fixing ${damageText(s)}`, h: m.e.repair, color: "var(--brand)", op: 1 },
+    m.e.stepped
+      ? { label: `Isolating the damage ${WHERE[s.where].at} and switching you back on`, h: m.e.switch, color: "var(--low)", op: 1 }
+      : { label: `Fixing ${damageText(s)}`, h: m.e.repair, color: "var(--brand)", op: 1 },
   ]
     .filter((x) => x.h > 0.05)
     .map((x) => ({
@@ -372,7 +434,7 @@ export function previewMessages(m: Model, s: WhatIf & { scenario: Scenario; medi
   const list = [
     { at: 1, title: "Before the storm", icon: "cloud-lightning" as const, meta: `${chan} · ${first}`, text: `AEP: A strong storm reaches ${m.P.area} Monday evening. There's a ${RISK[m.level].label.toLowerCase()} you lose power. If it goes out, plan to be without it until ${t.plan}. Charge your phone tonight.${med}` },
     { at: 2, title: "Outage confirmed", icon: "zap-off" as const, meta: `${chan}${s.medical ? " + phone call" : ""} · within 5 min of outage`, text: `AEP: We know your power is out (reported 9:40 PM). You don't need to call. Our best guess: it's back ${t.range}. We'll text you if that changes.` },
-    { at: 3, title: "Estimate updated", icon: "clock" as const, meta: `${chan} · when the estimate moves 2+ hours`, text: `AEP update: Crews found ${damageText(s)}. New estimate: back ${t.range}. Stay away from downed wires and call 911 if you see one.` },
+    { at: 3, title: "Estimate updated", icon: "clock" as const, meta: `${chan} · when the estimate moves 2+ hours`, text: `AEP update: Crews found ${damageText(s)} ${WHERE[s.where].at}.${m.e.stepped ? " They'll switch you back on before the repair is done." : ""} New estimate: back ${t.range}. Stay away from downed wires and call 911 if you see one.` },
     { at: 4, title: "Power restored", icon: "circle-check" as const, meta: `${chan} · as soon as crews finish`, text: `AEP: Power is back on in ${m.P.area} (${restoredAt(m)}). Still out? Your home may need its own repair. Reply OUT and we'll send someone.` },
   ];
   return list.map((x, i) => {
@@ -446,7 +508,17 @@ export function answer(intent: Intent, s: ConciergeInput): BotMessage {
     if (sc === "normal") return { ...base, accent: "var(--low)", headline: "There’s no outage to estimate right now.", body: "If a storm heads your way, I’ll show you how long an outage could last before it happens." };
     const segs = segments(m, s);
     const big = segs.slice().sort((a, b) => b.h - a.h)[0];
-    return { ...base, accent: "var(--brand)", headline: `Plan to be without power until ${t.plan}.`, body: `Most likely it’s back ${t.likely}. That’s about ${t.hours} from when it went out${m.hi >= 10 ? ", so plan for a night without power" : ""}.`, segs, segStart: sc === "watch" ? "Outage" : "Out 9:40 PM", segEnd: "Likely back", points: [{ k: "Biggest factor", icon: "clock", kColor: "var(--muted-foreground)", v: `${big.label} (${big.hText.replace("~", "about ")}).` }, { k: "Could be later if", icon: "trending-up", kColor: "var(--high-ink)", v: s.access === "blocked" ? "more trees come down on the access roads." : "fallen trees block the roads to the damage." }], foot: "Estimate, not a confirmed crew time." };
+    const mv = movers(m, s);
+    const later = mv.find((x) => x.h > 0);
+    const sooner = mv.find((x) => x.h < 0);
+    const lower = (x: string) => x.charAt(0).toLowerCase() + x.slice(1);
+    const points: ChatPoint[] = [
+      { k: "Biggest factor", icon: "clock", kColor: "var(--muted-foreground)", v: `${big.label} (${big.hText.replace("~", "about ")}).` },
+      { k: m.e.stepped ? "Restoring in steps" : "How the repair adds up", icon: "wrench", kColor: "var(--muted-foreground)", v: m.e.stepped ? stepText(m, s) : laborText(m) },
+    ];
+    if (later) points.push({ k: "Could be later if", icon: "trending-up", kColor: "var(--high-ink)", v: `${lower(later.t)} (${moveText(later.h)}).` });
+    if (sooner) points.push({ k: "Could be sooner if", icon: "trending-down", kColor: "var(--low-ink)", v: `${lower(sooner.t)} (${moveText(sooner.h)}).` });
+    return { ...base, accent: "var(--brand)", headline: `Plan to be without power until ${t.plan}.`, body: `Most likely it’s back ${t.likely}. That’s about ${t.hours} from when it went out${m.hi >= 10 ? ", so plan for a night without power" : ""}.`, segs, segStart: sc === "watch" ? "Outage" : "Out 9:40 PM", segEnd: "Likely back", points, foot: whatIfActive(s) ? "What-if estimate from the inputs you changed, not a confirmed crew time." : "Estimate, not a confirmed crew time." };
   }
   if (intent === "prep") {
     const long = m.hi >= 10;
@@ -485,7 +557,7 @@ export function intentOf(q: string): Intent | null {
 export function llmContext(s: ConciergeInput) {
   const m = model(s);
   const t = timeText(m);
-  return `Location: ${m.P.area} (${m.P.kind}). Status: ${SC[s.scenario].label}. Storm gusts ${m.wind} mph. Outage chance: ${RISK[m.level].label}. Estimated restoration: ${t.range}. Damage: ${damageText(s)}, ${s.crews} crews. Medical equipment declared: ${s.medical ? "yes" : "no"}.`;
+  return `Location: ${m.P.area} (${m.P.kind}). Status: ${SC[s.scenario].label}. Storm gusts ${m.wind} mph. Outage chance: ${RISK[m.level].label}. Estimated restoration: ${t.range}. Damage (${whatIfActive(s) ? "customer what-if" : "as reported"}): ${damageText(s)} ${WHERE[s.where].at}, ${s.crews} crews, road access ${s.access}. ${m.e.stepped ? "Crews can switch the customer back on before the repair is done." : "The customer waits for the repair."} Medical equipment declared: ${s.medical ? "yes" : "no"}.`;
 }
 
 export function quickAsks(sc: Scenario): { intent: Intent; label: string }[] {
@@ -513,7 +585,8 @@ export const LEGENDS: Record<Scenario, LegendItem[]> = {
 };
 
 export function facts(m: Model, s: WhatIf & { scenario: Scenario; wind: number }): { icon: IconName; v: string }[] {
-  const dmg = damageText(s);
+  // Confirmed facts describe the damage AEP reported, never the customer's what-if.
+  const dmg = damageText(DEF);
   const at = restoredAt(m);
   return {
     normal: [{ icon: "circle-check" as const, v: "No outages reported on your line." }, { icon: "cloud-sun" as const, v: "No storm warnings for your area this week." }],

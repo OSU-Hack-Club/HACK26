@@ -15,6 +15,7 @@ import {
   model,
   nextId,
   type Access,
+  type DamageWhere,
   type ChatMessage,
   type Channels,
   type Intent,
@@ -44,6 +45,7 @@ export interface ConciergeState {
   xfmr: boolean;
   crews: number;
   access: Access;
+  where: DamageWhere;
   reroute: boolean;
   medical: boolean;
   ch: Channels;
