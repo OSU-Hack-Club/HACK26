@@ -7,3 +7,22 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Icons
+
+Two icon libraries are installed. Use them before hand-rolling SVGs.
+
+- **Lucide** (`lucide-react`): general UI icons, imported as React components.
+  ```tsx
+  import { Zap, MapPin } from "lucide-react";
+  <Zap className="size-4" aria-hidden />
+  ```
+- **Simple Icons** (`simple-icons`): brand and logo icons. Each export (`si<Name>`, e.g. `siGithub`) is a typed object (`SimpleIcon`) with `title`, `hex` (brand color, no `#`), `path` (SVG path data for a 24×24 viewBox), and `svg`.
+  ```tsx
+  import { siGithub } from "simple-icons";
+  <svg role="img" viewBox="0 0 24 24" className="size-4" fill={`#${siGithub.hex}`}>
+    <title>{siGithub.title}</title>
+    <path d={siGithub.path} />
+  </svg>
+  ```
+  Import individual icons by name so unused ones are tree-shaken. Browse names at https://simpleicons.org.

@@ -21,7 +21,7 @@ function ScrollArea({
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar />
+      {/* No visible scrollbar: the viewport still scrolls by wheel, touch and keyboard. */}
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   )

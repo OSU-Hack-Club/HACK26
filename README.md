@@ -32,14 +32,28 @@ All variables are documented in [`.env.example`](.env.example) and validated in 
 
 ```
 src/
-  app/               routes (App Router); api/health is a sample route handler
+  app/               routes (App Router)
+    api/map          outage-map GeoJSON derived from the CIR2 extract (static)
+    api/chat         LLM fallback for concierge questions the intents don't cover
+    api/outage       demo event feed (scenarios, sample premises, what-if defaults)
+  components/concierge/  the Outage Concierge UI (mobile + desktop shells, map, chat, settings)
   components/ui/     shadcn components (generated; edit freely)
   components/providers/  theme, tooltip, toaster providers
   hooks/             shared hooks
+  lib/concierge/     estimate model + copy (port of the design handoff) and map-data derivation
+  data/map-data.json simplified CIR2 lines + ARCOS damage points (from Data1.zip)
   lib/utils.ts       cn() helper
   env.ts             typed env
 AEP-Challenge-Materials/  challenge data + docs (do not move)
 ```
+
+## Outage Concierge
+
+- One page (`/`) with two layouts sharing one state store: a **mobile** map-first dashboard with bottom sheets (below `lg`), and a **desktop** view with an interactive map, dashboard column and a docked concierge chat (docked at `2xl`, side sheet otherwise).
+- **Demo scenarios** (All Clear → Power Restored) are under Settings › Demo. Set `NEXT_PUBLIC_HIDE_DEMO=1` to hide them.
+- The map uses MapLibre GL with CARTO basemaps. `npm run dev` / `npm run build` copy MapLibre's web worker into `public/` first (`scripts/copy-maplibre-worker.mjs`).
+- Free-text chat questions that don't match a built-in intent go to `/api/chat` (needs `ANTHROPIC_API_KEY`; model from `AI_MODEL`). Without a key the concierge shows its "can't answer reliably" card.
+- `--brand` in `globals.css` is a placeholder blue; swap it for AEP's brand color.
 
 ## shadcn components
 
@@ -66,6 +80,7 @@ unzip -n data/raw/matched_upstream.zip -d data/extracted/matched_upstream
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Dev server |
+| `npm run tunnel` | Public Cloudflare quick-tunnel URL to the dev server on port 3000 (run alongside `npm run dev`; live reload works). For another port: `npx cloudflared tunnel --url http://localhost:<port>` |
 | `npm run build` | Production build |
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
