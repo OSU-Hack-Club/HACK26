@@ -138,14 +138,14 @@ src/lib/concierge/restoration.ts   estimate() → wait / road / repair / switch 
   ▼
 src/lib/concierge/model.ts         model().e, segments(), movers(), stepText(), laborText(), ASSUME_TEXT
   ▼
-UI: Restoration Estimate card (home.tsx) with "Try a What-If" (what-if.tsx), chat "how long" answer, messages
+UI: Restoration Estimate card + Restoration Explorer section (home.tsx, controls in what-if.tsx), Help page (HelpScreen in settings.tsx), chat "how long" answer, messages
 ```
 
 **Labor (from the workbook).** Each damage type is a bill of materials in `RESTORATION.jobs` (config.mjs). A part points at a block in the workbook by its title cell, e.g. `"Pole CU Average Hours by Size"` row `Size Group = Medium`. Hours per part = qty × (avg install + avg removal), because a storm repair replaces the broken unit. Current values: broken pole 5.29 h (pole 40–55 ft, crossarm, 3 insulators, 3 pins, grounding), downed wire span 0.86 h (2 dead-ends, 2 connectors), transformer 3.23 h (25 kVA, cutout, leads), fuse only 0.26 h. Access adders come from "Labor only work": limited = Access Constraint Adder (0.5 h per site), blocked = Remote Location Adder (1.312 h per site). Every labor hour is multiplied by the Indirect Labor Multiplier (4.5).
 
 **ARCOS.** Report and repair dates are day-level only, and open repairs carry a placeholder date, so they can't calibrate hours. The build keeps only aggregate shares: 32% of reports had access issues and 17% needed special equipment. The UI shows the first next to the road-access what-if.
 
-**Assumptions** (`ASSUME` in restoration.ts; all disclosed in the card under "How We Calculated This"):
+**Assumptions** (`ASSUME` in restoration.ts; all disclosed on the Help page, linked from the card as "How We Calculated This"):
 
 | Constant | Value | Meaning |
 | --- | --- | --- |

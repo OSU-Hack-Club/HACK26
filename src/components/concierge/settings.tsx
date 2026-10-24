@@ -11,6 +11,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CircleCheckIcon,
+  CircleHelpIcon,
   CloudLightningIcon,
   ClockIcon,
   HeartPulseIcon,
@@ -31,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  ASSUME_TEXT,
   RISK,
   ORDER,
   PREMISES,
@@ -42,6 +44,7 @@ import {
   eligibility,
   escalation,
   forcedChannel,
+  laborText,
   needsAlertText,
   previewMessages,
   priorityNeed,
@@ -49,7 +52,7 @@ import {
   type Needs,
   type PreviewMessage,
 } from "@/lib/concierge/model";
-import { Dot, Icon, Panel, SectionHeader, TouchSwitch } from "@/components/concierge/primitives";
+import { ConfirmedBadge, Dot, Icon, ModelEstimateBadge, Panel, SectionHeader, TouchSwitch } from "@/components/concierge/primitives";
 import { useConcierge, type Screen } from "@/components/concierge/store";
 
 /** Show the judges' scenario switcher. Hide it in production. */
@@ -182,15 +185,87 @@ export function SettingsScreen({ hideBack = false }: { hideBack?: boolean }) {
       )}
 
       <SectionHeader>About</SectionHeader>
-      <div className="flex flex-col gap-1.5 rounded-[14px] border border-dashed px-4 py-3.5 text-[13px]">
-        <div className="flex items-center gap-1.5 font-medium">
-          <CalculatorIcon size={14} aria-hidden />
-          How We Estimate
-        </div>
-        <span className="text-pretty text-muted-foreground">
-          Outage chance compares your line with how it held up in past storms (including February 2025), adjusted for the forecast. Repair hours come from AEP’s labor standards, multiplied by 4.5 for travel, safety briefings and setup. We never show other customers, crew names or exact equipment locations.
-        </span>
+      <Panel className="overflow-hidden">
+        <button type="button" className={rowClass} onClick={() => set({ screen: "help", helpFrom: "settings" })}>
+          <IconTile icon={CircleHelpIcon} />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="font-medium">Help &amp; How It Works</span>
+            <span className="text-xs text-muted-foreground">How we calculate your estimates, and what the labels mean</span>
+          </span>
+          <ChevronRightIcon size={16} aria-hidden />
+        </button>
+      </Panel>
+    </>
+  );
+}
+
+function HelpCard({ icon: I, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
+  return (
+    <Panel className="gap-2 px-4 py-3.5 text-[13px] text-pretty">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <I size={15} aria-hidden />
+        {title}
       </div>
+      {children}
+    </Panel>
+  );
+}
+
+/** Help page: how the estimates are calculated, what the labels mean, and what we never show. */
+export function HelpScreen() {
+  const { state, m } = useConcierge();
+  const from = state.helpFrom === "home" ? { to: "home" as const, label: "Home" } : { to: "settings" as const, label: "Settings" };
+  const storm = state.scenario !== "normal";
+  return (
+    <>
+      <BackButton to={from.to} label={from.label} />
+      <PageTitle>Help &amp; How It Works</PageTitle>
+
+      <SectionHeader>How We Calculated Your Restoration Estimate</SectionHeader>
+      <HelpCard icon={CalculatorIcon} title="Repair Time">
+        {storm ? <p>{laborText(m)}</p> : <p>When a storm is on the way, we estimate how long repairs would take from the damage typical for your line.</p>}
+        <ul className="flex list-disc flex-col gap-1 pl-4 text-muted-foreground">
+          {ASSUME_TEXT.map((a) => (
+            <li key={a}>{a}</li>
+          ))}
+        </ul>
+        <p className="text-muted-foreground">
+          We show a range, not a single time. It’s wider when we’re less sure about the storm. Use the Restoration Explorer on the home screen to see how damage, crews or blocked roads would move it.
+        </p>
+      </HelpCard>
+
+      <SectionHeader>How We Estimate Your Outage Chance</SectionHeader>
+      <HelpCard icon={CloudLightningIcon} title="Outage Chance">
+        <p>
+          We compare your line with how it held up in the last {m.P.features.stormsTotal} storms on record (including February 2025), then adjust for this storm’s wind. Overhead wires, long lines, trees, and past
+          damage on your circuit raise the chance. A backup feed from another circuit lowers it.
+        </p>
+        <p className="text-muted-foreground">Confidence is lower when the storm is stronger than most on record or when some of your line’s data is missing.</p>
+      </HelpCard>
+
+      <SectionHeader>What the Labels Mean</SectionHeader>
+      <Panel className="overflow-hidden text-[13px]">
+        {[
+          { badge: <ConfirmedBadge scenario="outage" />, d: "Something AEP crews or systems have confirmed, like the damage they found." },
+          { badge: <ModelEstimateBadge />, d: "Our best guess from past storms and AEP’s labor standards. Not a promise." },
+          { badge: <ModelEstimateBadge whatIf />, d: "An estimate from changes you made in the Restoration Explorer, not AEP’s crew plan." },
+        ].map((x, i) => (
+          <div key={i} className="flex flex-col items-start gap-1.5 border-t px-4 py-3 first:border-t-0">
+            {x.badge}
+            <span className="text-pretty text-muted-foreground">{x.d}</span>
+          </div>
+        ))}
+      </Panel>
+
+      <SectionHeader>Your Privacy and Safety</SectionHeader>
+      <HelpCard icon={ShieldCheckIcon} title="What We Never Show">
+        <p className="text-muted-foreground">
+          We never show other customers, crew names, or exact equipment locations. Your home appears only as an approximate area, and hospitals and fire stations as general areas. Needs you declare are never
+          shared or shown on a map.
+        </p>
+        <p className="font-medium text-destructive">Stay at least 30 feet from downed wires, even if they look dead, and call 911.</p>
+        <p className="text-muted-foreground">If something here doesn’t answer your question, contact AEP customer service.</p>
+      </HelpCard>
     </>
   );
 }

@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   ArrowRightIcon,
   CalculatorIcon,
+  ChevronRightIcon,
   ChevronDownIcon,
   CircleHelpIcon,
   ClockIcon,
@@ -29,7 +30,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import {
-  ASSUME_TEXT,
   DEF,
   RISK,
   type RiskLevel,
@@ -44,7 +44,6 @@ import {
   timeText,
   restoredAt,
   damageText,
-  laborText,
   movers,
   moveText,
   stepText,
@@ -604,8 +603,7 @@ export function OutageRisk() {
 }
 
 export function RestorationEstimate() {
-  const { state, m } = useConcierge();
-  const [whatIfOpen, setWhatIfOpen] = React.useState(false);
+  const { state, m, set } = useConcierge();
   const sc = state.scenario;
   if (sc !== "watch" && sc !== "outage" && sc !== "restoring") return null;
   const t = timeText(m);
@@ -662,28 +660,54 @@ export function RestorationEstimate() {
             ))}
           </div>
         )}
-        <Collapsible open={whatIfOpen} onOpenChange={setWhatIfOpen}>
-          <AccordionRow icon={<SlidersHorizontalIcon size={15} aria-hidden />}>Try a What-If</AccordionRow>
-          <CollapsibleContent>
-            <WhatIfControls />
-          </CollapsibleContent>
-        </Collapsible>
-        <Collapsible>
-          <AccordionRow icon={<CalculatorIcon size={15} aria-hidden />}>How We Calculated This</AccordionRow>
-          <CollapsibleContent>
-            <div className="flex flex-col gap-2 border-t px-4 pt-3 pb-3.5 text-[13px] text-pretty">
-              <p>{laborText(m)}</p>
-              <ul className="flex list-disc flex-col gap-1 pl-4 text-muted-foreground">
-                {ASSUME_TEXT.map((a) => (
-                  <li key={a}>{a}</li>
-                ))}
-              </ul>
-              <p className="text-muted-foreground">
-                The range is wider when we’re less sure about the storm. This is a model estimate. Times confirmed by AEP crews are marked “Confirmed by AEP”.
-              </p>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
+        <button
+          type="button"
+          onClick={() => set({ screen: "help", helpFrom: "home" })}
+          className="flex w-full cursor-pointer items-center gap-2 border-t px-4 py-3 text-left font-medium transition-colors hover:bg-muted"
+        >
+          <CalculatorIcon size={15} aria-hidden />
+          <span className="flex-1">How We Calculated This</span>
+          <ChevronRightIcon size={16} aria-hidden />
+        </button>
+      </Panel>
+    </>
+  );
+}
+
+/** Customer-facing scenario explorer: change the damage, crews or roads and watch the estimate respond. */
+export function RestorationExplorer() {
+  const { state, m } = useConcierge();
+  const sc = state.scenario;
+  if (sc !== "watch" && sc !== "outage" && sc !== "restoring") return null;
+  const t = timeText(m);
+  const active = whatIfActive(state);
+  const hasDelta = Math.abs(m.delta) >= 0.5;
+  const later = m.delta > 0;
+  return (
+    <>
+      <SectionHeader>Restoration Explorer</SectionHeader>
+      <Panel>
+        {/* Live result, so the response is visible next to the controls without scrolling back up. */}
+        <div className="flex flex-col gap-1.5 px-4 pt-4 pb-3" aria-live="polite">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontalIcon size={15} className="text-muted-foreground" aria-hidden />
+            <span className="flex-1 text-[13px] font-medium text-muted-foreground">{active ? "With Your Changes" : "Starting Point"}</span>
+            <ModelEstimateBadge whatIf={active} />
+          </div>
+          <div className="text-[19px] leading-tight font-semibold tracking-[-0.01em] text-pretty">Back {t.range}</div>
+          <p className="text-[13px] text-pretty text-muted-foreground">
+            About {t.hours}
+            {hasDelta && (
+              <>
+                {" · "}
+                <span className="font-medium" style={{ color: later ? "var(--high-ink)" : "var(--low-ink)" }}>
+                  {Math.round(Math.abs(m.delta)) || "<1"} h {later ? "later" : "sooner"}
+                </span>
+              </>
+            )}
+          </p>
+        </div>
+        <WhatIfControls />
       </Panel>
     </>
   );
@@ -708,6 +732,7 @@ export function DashboardSections() {
       <NeedHelp />
       <OutageRisk />
       <RestorationEstimate />
+      <RestorationExplorer />
       <Footnote />
     </>
   );

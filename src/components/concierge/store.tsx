@@ -27,13 +27,15 @@ import {
 } from "@/lib/concierge/model";
 import type { RiskLevel } from "@/lib/concierge/risk";
 
-export type Screen = "home" | "settings" | "notifications" | "location";
+export type Screen = "home" | "settings" | "notifications" | "location" | "help";
 
 export interface ConciergeState {
   scenario: Scenario;
   /** Last scenario the user opened. The status pill glows until seen === scenario. */
   seen: Scenario;
   screen: Screen;
+  /** Where the Help page's back button returns to (it opens from the estimate card or Settings). */
+  helpFrom: Screen;
   statusOpen: boolean;
   chatOpen: boolean;
   /** Notification center sheet. */
@@ -90,6 +92,7 @@ const INITIAL: ConciergeState = {
   scenario: "watch",
   seen: "normal",
   screen: "home",
+  helpFrom: "settings",
   statusOpen: false,
   chatOpen: false,
   inboxOpen: false,

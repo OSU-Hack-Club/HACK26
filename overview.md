@@ -21,10 +21,10 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
 | --- | --- | --- |
 | 1 | Select or enter an anonymized location | Pick a demo premise (Maple Grove, Riverside, Ridge Road) or type a premise or circuit ID. If the optional DynamoDB lookup is set up, a real premise is fetched server-side by a hashed ID. |
 | 2 | Outage-risk prediction with confidence and explanation | See a five-level chance of losing power (Minimal → Critical) with a confidence indicator. Tap it to see what raises or lowers the chance and what data is missing. |
-| 3 | Explore scenarios and get a restoration range | Open **Try a What-If** on the Restoration Estimate card. Change broken poles, downed spans, transformer damage, where the damage is, restoring in steps, crews and road access. The range updates live. |
+| 3 | Explore scenarios and get a restoration range | Use the **Restoration Explorer** section below the Restoration Estimate card. Change broken poles, downed spans, transformer damage, where the damage is, restoring in steps, crews and road access. The range updates live. |
 | 4 | Preparation actions and alert eligibility | Get preparation steps that fit the predicted length of the outage and any needs the customer has declared, plus a clear yes or no on alerts. |
 | 5 | At least one proactive communication | See ready-to-send messages for before the storm, outage confirmed, estimate updated and power restored, plus a notification inbox that fills as the storm moves on. |
-| 6 | Show how privacy, safety, uncertainty and limits are handled | Model Estimate badges, a "How We Calculated This" section, safety labels and a fallback for questions it can't answer reliably. See the last section below. |
+| 6 | Show how privacy, safety, uncertainty and limits are handled | Model Estimate badges, a **Help & How It Works** page, safety labels and a fallback for questions it can't answer reliably. See the last section below. |
 
 ## How it meets the five requirements
 
@@ -89,7 +89,7 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
 ### 5. Explainability and responsible use
 
 - **Reasons in plain words** for the risk, the estimate and each recommendation, in the home cards and the chat.
-- **Disclosed:** confidence, what assumptions were made, which data is missing, and what could change the answer. The "How We Calculated This" section lists every restoration assumption.
+- **Disclosed:** confidence, what assumptions were made, which data is missing, and what could change the answer. The **Help & How It Works** page (from Settings, or "How We Calculated This" on the estimate card) lists every restoration assumption.
 - **Privacy:**
   - No premise numbers, addresses, coordinates, device IDs, employee details or life-support flags leave the data build.
   - Area names are fictional, and the home marker on the map is offset from real equipment. Hospital, fire and ambulance markers are snapped to a ~1 km grid, so they show a general area, not an exact spot.

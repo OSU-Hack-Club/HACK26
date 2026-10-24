@@ -16,9 +16,9 @@ const ACCESS: { id: Access; label: string }[] = [
 ];
 const WHERES: DamageWhere[] = ["street", "branch", "main"];
 
-function Row({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor?: string; children: React.ReactNode }) {
+function Row({ label, hint, htmlFor, first = false, children }: { label: string; hint?: string; htmlFor?: string; first?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 border-t px-4 py-3">
+    <div className={cn("flex flex-col gap-2 px-4 py-3", !first && "border-t")}>
       <div className="flex items-center gap-3">
         <label htmlFor={htmlFor} className="flex-1 font-medium">
           {label}
@@ -84,13 +84,13 @@ export function WhatIfControls() {
 
   return (
     <div className="flex flex-col">
-      <p className="px-4 pb-3 text-[13px] text-pretty text-muted-foreground">
+      <p className="border-t px-4 py-3 text-[13px] text-pretty text-muted-foreground">
         {state.scenario === "watch"
           ? "We assumed damage like a typical storm on your line. Change it to see how the estimate moves."
           : "We started from the damage crews reported. Change it to see how the estimate moves."}{" "}
         These are what-ifs, not AEP’s crew plan.
       </p>
-      <Row label="Broken Poles">
+      <Row label="Broken Poles" first>
         <Stepper label="Broken poles" value={state.poles} min={0} max={6} onChange={(poles) => patch({ poles })} />
       </Row>
       <Row label="Downed Wire Spans">

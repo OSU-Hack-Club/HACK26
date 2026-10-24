@@ -26,6 +26,7 @@ const SCREENS: { id: Screen; label: string }[] = [
   { id: "settings", label: "Settings" },
   { id: "notifications", label: "Notifications" },
   { id: "location", label: "Location" },
+  { id: "help", label: "Help" },
 ];
 const UNKNOWN_ID = "X-00000";
 
