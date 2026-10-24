@@ -197,6 +197,9 @@ export function useConcierge() {
   return ctx;
 }
 
+/** Desktop layout breakpoint (Tailwind `lg`). */
+export const DESKTOP = "(min-width: 1024px)";
+
 /** Matches a media query on the client; false during SSR. */
 export function useMediaQuery(query: string) {
   return React.useSyncExternalStore(

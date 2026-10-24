@@ -14,7 +14,7 @@ const MUTED: Tone = { c: "var(--muted-foreground)", bg: "var(--muted)", ink: "va
 const toneFor = (n: Notice) => (n.tone === "muted" ? MUTED : TONE[n.tone]);
 
 /** Active alerts + feed for the current state, with unread counts. */
-function useInbox() {
+export function useInbox() {
   const { state, m } = useConcierge();
   const box = React.useMemo(() => inbox(m, state), [m, state]);
   const all = React.useMemo(() => [...box.active, ...box.feed], [box]);
@@ -52,7 +52,8 @@ export function InboxButton({ className }: { className?: string }) {
   );
 }
 
-export function InboxHeader({ titleAs: Title = "span" }: { titleAs?: React.ElementType }) {
+/** `closable` is false on mobile, where notifications are a bottom-nav tab rather than a sheet. */
+export function InboxHeader({ titleAs: Title = "span", closable = true }: { titleAs?: React.ElementType; closable?: boolean }) {
   const { set, closeSheets } = useConcierge();
   const { unread } = useInbox();
   return (
@@ -70,9 +71,11 @@ export function InboxHeader({ titleAs: Title = "span" }: { titleAs?: React.Eleme
       >
         <SettingsIcon className="size-[18px]" />
       </Button>
-      <Button variant="ghost" size="icon" className="size-10 rounded-[10px]" onClick={closeSheets} aria-label="Close">
-        <XIcon className="size-[18px]" />
-      </Button>
+      {closable && (
+        <Button variant="ghost" size="icon" className="size-10 rounded-[10px]" onClick={closeSheets} aria-label="Close">
+          <XIcon className="size-[18px]" />
+        </Button>
+      )}
     </div>
   );
 }

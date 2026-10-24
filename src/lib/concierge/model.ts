@@ -82,7 +82,7 @@ export const SC: Record<Scenario, { label: string; tone: ToneKey; title: string;
   restored: { label: "Power Restored", tone: "low", title: "Power Restored", tag: "Restored" },
 };
 
-const DAY = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DAY = ["Mon.", "Tue.", "Wed.", "Thu.", "Fri."];
 const DAYL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const SMALL = new Set(["a", "an", "the", "and", "or", "but", "of", "to", "in", "on", "at", "for", "by", "vs", "via"]);
 
@@ -99,7 +99,7 @@ export const tc = (str: string) =>
     )
     .join(" ");
 
-/** Hours since Monday 00:00 → "Tue 4 AM" (or "Tue 4:30 AM" with minutes). */
+/** Hours since Monday 00:00 → "Tue. 4 AM" (or "Tue. 4:30 AM" with minutes). */
 export function fmt(h: number, withMin = false) {
   let d = Math.floor(h / 24);
   const hr = h - d * 24;
@@ -205,6 +205,18 @@ export function timeText(m: Model) {
 }
 
 export const restoredAt = (m: Model) => fmt(m.start + m.mid * 0.95, true);
+
+/** Map event card title: "Mon. 6 PM: Strong Winds". */
+export function eventTitle(m: Model, sc: Scenario) {
+  const [at, cond] = {
+    normal: [fmt(m.start, true), "No Outages"],
+    watch: [fmt(18), "Strong Winds"],
+    outage: [fmt(m.start, true), "Power Outage"],
+    restoring: [fmt(m.nowH, true), "Crews Restoring Power"],
+    restored: [restoredAt(m), "Power Restored"],
+  }[sc];
+  return `${at}: ${cond}`;
+}
 
 export function damageText(s: WhatIf) {
   const a: string[] = [];
@@ -367,7 +379,7 @@ export function previewMessages(m: Model, s: WhatIf & { scenario: Scenario; medi
   const el = eligibility(m, s);
   const idx = ORDER.indexOf(s.scenario);
   const chan = s.ch.sms ? "Text" : s.ch.push ? "Push" : s.ch.email ? "Email" : "Text";
-  const first = s.medical ? "Sat 8 PM · 48 h before the storm" : "Sun 8 PM · 24 h before the storm";
+  const first = s.medical ? "Sat. 8 PM · 48 h before the storm" : "Sun. 8 PM · 24 h before the storm";
   const med = s.medical ? " Have backup power ready for medical equipment, or a place to go." : "";
   const list = [
     { at: 1, title: "Before the storm", icon: "cloud-lightning" as const, meta: `${chan} · ${first}`, text: `AEP: A strong storm reaches ${m.P.area} Monday evening. There's a ${RISK[m.level].label.toLowerCase()} you lose power. If it goes out, plan to be without it until ${t.plan}. Charge your phone tonight.${med}` },
@@ -538,8 +550,8 @@ export function estimateLine(m: Model, sc: Scenario) {
 export function timeline(m: Model, sc: Scenario) {
   const idx = ORDER.indexOf(sc);
   const events = [
-    { at: 1, title: "Watch Alert Issued", t: "Sat 6:00 PM" },
-    { at: 2, title: "Power Outage Detected", t: "Mon 9:40 PM" },
+    { at: 1, title: "Watch Alert Issued", t: "Sat. 6:00 PM" },
+    { at: 2, title: "Power Outage Detected", t: "Mon. 9:40 PM" },
     { at: 3, title: "Crews On Site · Estimate Updated", t: fmt(m.nowH, true) },
     { at: 4, title: "Power Restored", t: restoredAt(m) },
   ]
@@ -550,10 +562,10 @@ export function timeline(m: Model, sc: Scenario) {
 
 export const weather = (sc: Scenario, wind: number) => ({
   icon: (sc === "normal" ? "cloud-sun" : sc === "watch" ? "wind" : sc === "restored" ? "sun" : "cloud-lightning") as IconName,
-  label: sc === "normal" ? "Calm · 8 mph" : sc === "watch" ? `Mon · ${wind} mph gusts` : sc === "restored" ? "Clearing · 12 mph" : `Gusts ${wind} mph`,
+  label: sc === "normal" ? "Calm · 8 mph" : sc === "watch" ? `Mon. · ${wind} mph gusts` : sc === "restored" ? "Clearing · 12 mph" : `Gusts ${wind} mph`,
 });
 
-/** Hours since Monday 00:00 → "Mon Morning", "Tue Afternoon", "Mon Night". Hours before 5 AM count as that day's night. */
+/** Hours since Monday 00:00 → "Mon. Morning", "Tue. Afternoon", "Mon. Night". Hours before 5 AM count as that day's night. */
 export function dayPart(h: number) {
   const hr = h % 24;
   const d = Math.min(Math.floor((hr < 5 ? h - 5 : h) / 24), 4);
