@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUpIcon, LoaderCircleIcon, SparklesIcon, XIcon } from "lucide-react";
+import { ArrowUpIcon, LoaderCircleIcon, MessageCircleQuestionMarkIcon, SparklesIcon, XIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,18 @@ import { Chip, Icon, RiskScale, SegmentBar } from "@/components/concierge/primit
 import { useConcierge } from "@/components/concierge/store";
 
 export function ChatHeader({ onClose }: { onClose?: () => void }) {
-  const { state, m } = useConcierge();
+  const { state, m, aiEnabled } = useConcierge();
+  const HeaderIcon = aiEnabled ? SparklesIcon : MessageCircleQuestionMarkIcon;
   return (
     <div className="flex shrink-0 items-center gap-2.5 border-b pt-2 pr-2 pb-3 pl-4">
       <span className="flex size-[34px] items-center justify-center rounded-full bg-brand-soft text-brand-ink">
-        <SparklesIcon size={16} aria-hidden />
+        <HeaderIcon size={16} aria-hidden />
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-[15px] leading-tight font-semibold">Outage Concierge</span>
-        <span className="text-xs text-muted-foreground">{state.unknownId ? "Unknown location" : m.P.area} · uses your live estimate</span>
+        <span className="text-xs text-muted-foreground">
+          {state.unknownId ? "Unknown location" : m.P.area} · {aiEnabled ? "uses your live estimate" : "quick answers only"}
+        </span>
       </span>
       {onClose && (
         <Button variant="ghost" size="icon" className="size-10 rounded-[10px]" onClick={onClose} aria-label="Close">
@@ -112,7 +115,7 @@ export function QuickAskChips({ className }: { className?: string }) {
 }
 
 export function ChatComposer({ className }: { className?: string }) {
-  const { ask } = useConcierge();
+  const { ask, aiEnabled } = useConcierge();
   const [draft, setDraft] = React.useState("");
   const send = () => {
     const q = draft.trim();
@@ -133,7 +136,7 @@ export function ChatComposer({ className }: { className?: string }) {
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Type a question…"
+          placeholder={aiEnabled ? "Type a question…" : "Ask about outages, timing, or prep…"}
           aria-label="Ask the outage concierge"
           maxLength={500}
           className="h-[38px] min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"

@@ -18,9 +18,20 @@ const serverSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  ANTHROPIC_API_KEY: optional,
+  // --- AI / LLM ---
+  // Which backend answers free-text concierge questions. "auto" picks the first
+  // configured option: anthropic → openai → local ollama; "off" disables AI answers.
+  // See src/lib/concierge/llm.ts.
+  AI_PROVIDER: z.enum(["auto", "anthropic", "openai", "ollama", "off"]).default("auto"),
+  // Model used by the hosted API provider (anthropic/openai). Ollama uses OLLAMA_MODEL.
   AI_MODEL: z.string().default("claude-sonnet-5-5"),
+  ANTHROPIC_API_KEY: optional,
   OPENAI_API_KEY: optional,
+  // Override for OpenAI-compatible gateways (e.g. a proxy). Defaults to the public API.
+  OPENAI_BASE_URL: z.string().default("https://api.openai.com/v1"),
+  // Local Ollama server. Runs on the desktop; any pulled model works.
+  OLLAMA_BASE_URL: z.string().default("http://127.0.0.1:11434"),
+  OLLAMA_MODEL: z.string().default("llama3.1"),
   NWS_USER_AGENT: z.string().default("HACK26 Outage Concierge"),
   OPENWEATHER_API_KEY: optional,
   DATA_DIR: z.string().default("./AEP-Challenge-Materials/data/extracted"),

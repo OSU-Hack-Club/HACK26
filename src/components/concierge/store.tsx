@@ -70,6 +70,8 @@ type Patch = Partial<ConciergeState> | ((s: ConciergeState) => Partial<Concierge
 interface ConciergeContextValue {
   state: ConciergeState;
   m: Model;
+  /** Whether free-text questions get AI answers (GET /api/chat). True until the check says otherwise. */
+  aiEnabled: boolean;
   set: (patch: Patch) => void;
   openStatus: () => void;
   closeSheets: () => void;
@@ -118,6 +120,21 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
+  const [aiEnabled, setAiEnabled] = React.useState(true);
+  const aiEnabledRef = React.useRef(aiEnabled);
+  React.useEffect(() => {
+    aiEnabledRef.current = aiEnabled;
+  }, [aiEnabled]);
+  React.useEffect(() => {
+    // A failed check leaves AI on; /api/chat failures still fall back to the "can't answer" card.
+    fetch("/api/chat")
+      .then((r) => (r.ok ? (r.json() as Promise<{ enabled: boolean }>) : null))
+      .then((res) => {
+        if (res) setAiEnabled(res.enabled);
+      })
+      .catch(() => {});
+  }, []);
+
   const set = React.useCallback((patch: Patch) => {
     setState((s) => ({ ...s, ...(typeof patch === "function" ? patch(s) : patch) }));
   }, []);
@@ -140,7 +157,7 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
         statusOpen: false,
         inboxOpen: false,
       }));
-      const it = intent ?? intentOf(q);
+      const it = intent ?? intentOf(q) ?? (aiEnabledRef.current ? null : "none");
       if (it) {
         // Answer from the latest state so what-if changes made meanwhile are reflected.
         window.setTimeout(() => pushBot(answer(it, stateRef.current)), TYPING_DELAY);
@@ -205,6 +222,7 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
     () => ({
       state,
       m: model(state),
+      aiEnabled,
       set,
       flash,
       ask,
@@ -217,7 +235,7 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
       openInbox: () => set({ inboxOpen: true, statusOpen: false, chatOpen: false }),
       resetAll: () => set({ ...INITIAL, chat: [greeting(INITIAL.premise)] }),
     }),
-    [state, set, flash, ask, pickPremise, submitId, setRead],
+    [state, aiEnabled, set, flash, ask, pickPremise, submitId, setRead],
   );
 
   return <ConciergeContext.Provider value={value}>{children}</ConciergeContext.Provider>;

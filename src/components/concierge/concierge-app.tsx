@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { BellIcon, HouseIcon, MoonIcon, SettingsIcon, SparklesIcon, ArrowUpIcon, SunIcon, type LucideIcon } from "lucide-react";
+import { BellIcon, HouseIcon, MessageCircleQuestionMarkIcon, MoonIcon, SettingsIcon, SparklesIcon, ArrowUpIcon, SunIcon, type LucideIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
@@ -111,7 +111,8 @@ function ScreenContent({ withMap, hideBack = false }: { withMap: boolean; hideBa
 }
 
 function AskBar() {
-  const { openChat } = useConcierge();
+  const { openChat, aiEnabled } = useConcierge();
+  const AskIcon = aiEnabled ? SparklesIcon : MessageCircleQuestionMarkIcon;
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-3 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))]">
       <QuickAskChips />
@@ -121,8 +122,8 @@ function AskBar() {
           onClick={openChat}
           className="flex h-[46px] min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-full bg-muted pr-1.5 pl-3.5 text-left text-sm text-muted-foreground"
         >
-          <SparklesIcon size={16} aria-hidden />
-          <span className="flex-1 truncate">Ask anything about the storm…</span>
+          <AskIcon size={16} aria-hidden />
+          <span className="flex-1 truncate">{aiEnabled ? "Ask anything about the storm…" : "Ask about outages, timing, or prep…"}</span>
           <span className="flex size-[34px] shrink-0 items-center justify-center rounded-full bg-brand text-white">
             <ArrowUpIcon size={16} aria-hidden />
           </span>
@@ -158,12 +159,12 @@ function useTab(): Tab {
 }
 
 function BottomNav() {
-  const { set, openChat, openInbox } = useConcierge();
+  const { set, openChat, openInbox, aiEnabled } = useConcierge();
   const { unread } = useInbox();
   const tab = useTab();
   const items: { id: Tab; label: string; icon: LucideIcon; go: () => void; badge?: number }[] = [
     { id: "home", label: "Home", icon: HouseIcon, go: () => set({ screen: "home", chatOpen: false, inboxOpen: false }) },
-    { id: "chat", label: "Ask AI", icon: SparklesIcon, go: openChat },
+    { id: "chat", label: aiEnabled ? "Ask AI" : "Ask", icon: aiEnabled ? SparklesIcon : MessageCircleQuestionMarkIcon, go: openChat },
     { id: "alerts", label: "Alerts", icon: BellIcon, go: openInbox, badge: unread },
     { id: "settings", label: "Settings", icon: SettingsIcon, go: () => set({ screen: "settings", chatOpen: false, inboxOpen: false }) },
   ];
