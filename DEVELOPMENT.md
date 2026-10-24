@@ -234,8 +234,8 @@ The UI only depends on the `RiskDataset` shape (features.ts) and the scenario in
 ## Privacy rules
 
 - Nothing that identifies a premise leaves the build script: no `premise_nu`, addresses, service-point coordinates, device IDs or location numbers, or life-support flags. Only aggregated counts and anonymized circuit names (`CIR…`, already anonymized in the challenge data).
-- The medical-equipment state in the app is **declared by the customer** (settings). Never infer it from `critical_c`.
-- Demo area names are fictional. The map "home" is offset ~250 m from real assets (`map-data.ts`).
+- Medical equipment and the other needs (`Needs` in `model.ts`: mobility, hearing, vision, critical facility) are **declared by the customer** in Settings. Never infer them from `critical_c` or any account or network field. They change guidance, alert timing, channels and escalation (`priorityNeed`, `forcedChannel`, `escalation`), and reach `/api/chat` only as yes/no flags.
+- Demo area names are fictional. The map "home" is offset ~250 m from real assets (`map-data.ts`). Hospitals, fire and ambulance stations are snapped to a 0.01° (~1 km) grid in both `src/data/map-data.json` and `getMapData()`, so the map shows a general area, never an exact pin.
 - Customer copy may cite counts ("3 of the last 11 storms damaged your circuit") but not crew names, device IDs, or exact equipment locations.
 
 ---

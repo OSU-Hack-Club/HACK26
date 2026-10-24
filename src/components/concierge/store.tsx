@@ -7,6 +7,7 @@ import { ToastCheck } from "@/components/concierge/primitives";
 
 import {
   DEF,
+  NO_NEEDS,
   PREMISES,
   answer,
   greeting,
@@ -20,6 +21,7 @@ import {
   type Channels,
   type Intent,
   type Model,
+  type Needs,
   type RuntimePremise,
   type Scenario,
 } from "@/lib/concierge/model";
@@ -51,6 +53,8 @@ export interface ConciergeState {
   where: DamageWhere;
   reroute: boolean;
   medical: boolean;
+  /** Accessibility and critical-facility needs, declared by the customer in Settings. */
+  needs: Needs;
   ch: Channels;
   chat: ChatMessage[];
   typing: boolean;
@@ -94,6 +98,7 @@ const INITIAL: ConciergeState = {
   unknownId: null,
   premiseOverride: null,
   medical: false,
+  needs: NO_NEEDS,
   ch: { push: true, sms: true, email: false, call: false },
   chat: [greeting("P-20417")],
   typing: false,

@@ -221,6 +221,10 @@ export function DebugMenu() {
             <Field label="Customer">
               <div className="flex flex-wrap gap-1">
                 <Toggle label="Medical equipment" checked={state.medical} onChange={(medical) => set({ medical })} />
+                <Toggle label="Mobility" checked={state.needs.mobility} onChange={(mobility) => set((s) => ({ needs: { ...s.needs, mobility } }))} />
+                <Toggle label="Hearing" checked={state.needs.hearing} onChange={(hearing) => set((s) => ({ needs: { ...s.needs, hearing } }))} />
+                <Toggle label="Vision" checked={state.needs.vision} onChange={(vision) => set((s) => ({ needs: { ...s.needs, vision } }))} />
+                <Toggle label="Critical facility" checked={state.needs.facility} onChange={(facility) => set((s) => ({ needs: { ...s.needs, facility } }))} />
                 <Toggle label="Texts" checked={state.ch.sms} onChange={(sms) => set((s) => ({ ch: { ...s.ch, sms } }))} />
                 <Toggle label="Push" checked={state.ch.push} onChange={(push) => set((s) => ({ ch: { ...s.ch, push } }))} />
               </div>

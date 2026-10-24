@@ -30,7 +30,7 @@ export type IconName =
   | "settings" | "circle-check" | "cloud-sun" | "wind" | "tree-pine" | "wrench"
   | "circle-help" | "cloud-lightning" | "sun" | "star"
   | "trees" | "tree-deciduous" | "utility-pole" | "cable" | "git-commit-horizontal" | "git-fork" | "history"
-  | "network" | "mountain" | "building-2" | "route";
+  | "network" | "mountain" | "building-2" | "route" | "accessibility" | "ear-off" | "eye-off";
 
 /** A premise as the app sees it: the data record (features.ts) plus values the restoration estimate derives from it. */
 export interface Premise extends PremiseRecord {
@@ -426,16 +426,82 @@ export function confText(m: Model) {
 
 export interface Channels { push: boolean; sms: boolean; email: boolean; call: boolean }
 
-export function eligibility(m: Model, s: { medical: boolean; scenario: Scenario }) {
-  const riskOk = alertWorthy(m.level);
-  return { riskOk, ok: riskOk || s.medical || (s.scenario !== "normal" && s.scenario !== "watch") };
+/**
+ * Needs the customer declares in Settings. Only the customer can turn these on; they are never inferred
+ * from account, network or ARCOS data (critical_c stays in the build script), never shown on a map,
+ * and never sent anywhere except as yes/no flags in the concierge context.
+ */
+export interface Needs {
+  /** Hard to leave home quickly or without help (stairs, wheelchair, no car). */
+  mobility: boolean;
+  /** Deaf or hard of hearing: texts instead of calls. */
+  hearing: boolean;
+  /** Blind or low vision: a phone call for key updates. */
+  vision: boolean;
+  /** The account serves a critical facility (school, water treatment, care home, shelter). */
+  facility: boolean;
 }
 
-export const channelOn = (ch: Channels, medical: boolean, k: keyof Channels) => ch[k] || (k === "call" && medical);
+export const NO_NEEDS: Needs = { mobility: false, hearing: false, vision: false, facility: false };
 
-export function channelList(ch: Channels, medical: boolean) {
+/** Everything the customer has declared about themselves. */
+export interface Declared {
+  medical: boolean;
+  needs: Needs;
+}
+
+export const NEED_INFO: Record<keyof Needs, { icon: IconName; t: string; d: string }> = {
+  mobility: { icon: "accessibility", t: "It’s Hard for Me to Leave Home Quickly", d: "Stairs, a wheelchair, or no car. We alert you earlier and check in if an outage runs long." },
+  hearing: { icon: "ear-off", t: "I’m Deaf or Hard of Hearing", d: "We text you instead of calling, including for urgent updates." },
+  vision: { icon: "eye-off", t: "I’m Blind or Have Low Vision", d: "We call you with key updates, and our texts are written to read well aloud." },
+  facility: { icon: "building-2", t: "This Account Is a Critical Facility", d: "A school, water treatment plant, care home, or shelter. We alert you earlier and escalate long outages." },
+};
+
+/** Declared needs that get the pre-storm alert 48 hours ahead and an earlier escalation. */
+export const priorityNeed = (d: Declared) => d.medical || d.needs.mobility || d.needs.facility;
+
+export const anyDeclared = (d: Declared) => d.medical || Object.values(d.needs).some(Boolean);
+
+export function eligibility(m: Model, s: Declared & { scenario: Scenario }) {
+  const riskOk = alertWorthy(m.level);
+  return { riskOk, ok: riskOk || priorityNeed(s) || (s.scenario !== "normal" && s.scenario !== "watch") };
+}
+
+/** Why a declared need keeps this channel on (the customer can't switch it off), or null. */
+export function forcedChannel(d: Declared, k: keyof Channels): string | null {
+  if (k === "sms" && d.needs.hearing) return "On because you asked for texts instead of calls";
+  if (k !== "call" || d.needs.hearing) return null;
+  if (d.medical) return "On because of medical equipment";
+  if (d.needs.facility) return "On for your critical facility";
+  if (d.needs.vision) return "On so you can hear key updates";
+  return null;
+}
+
+export const channelOn = (ch: Channels, d: Declared, k: keyof Channels) => ch[k] || forcedChannel(d, k) !== null;
+
+export function channelList(ch: Channels, d: Declared) {
   const names = { push: "Push", sms: "Text", email: "Email", call: "Call" } as const;
-  return (["push", "sms", "email", "call"] as const).filter((k) => channelOn(ch, medical, k)).map((k) => names[k]).join(" + ");
+  return (["push", "sms", "email", "call"] as const).filter((k) => channelOn(ch, d, k)).map((k) => names[k]).join(" + ");
+}
+
+/** When and how a long outage is escalated for this customer. */
+export function escalation(d: Declared): { v: string; warn: boolean } {
+  const reach = d.needs.hearing ? "text you" : "call you";
+  if (d.medical) return { v: `If the outage passes 4 hours, we ${reach} and flag your home for a welfare check.`, warn: true };
+  if (d.needs.facility) return { v: `If the outage passes 4 hours, we ${reach} and pass your facility to AEP’s critical-facility team for follow-up.`, warn: true };
+  if (d.needs.mobility) return { v: `If the outage passes 12 hours, we ${reach} to check in and help you find a warming or cooling center.`, warn: true };
+  return { v: "If the outage passes 24 hours, we send a list of warming and cooling centers.", warn: false };
+}
+
+/** One plain sentence on how declared needs change the alerts, or null when none are declared. */
+export function needsAlertText(d: Declared) {
+  const parts: string[] = [];
+  if (priorityNeed(d)) parts.push("we’ll alert you 48 hours before a storm and check in if an outage runs long");
+  if (d.needs.hearing) parts.push("we’ll text you instead of calling");
+  else if (d.needs.vision) parts.push("we’ll call you with key updates");
+  if (!parts.length) return null;
+  const s = parts.join(", and ");
+  return `Because of what you told us, ${s}.`;
 }
 
 export interface PreviewMessage {
@@ -449,16 +515,20 @@ export interface PreviewMessage {
   count: string;
 }
 
-export function previewMessages(m: Model, s: WhatIf & { scenario: Scenario; medical: boolean; ch: Channels }): PreviewMessage[] {
+export function previewMessages(m: Model, s: WhatIf & Declared & { scenario: Scenario; ch: Channels }): PreviewMessage[] {
   const t = timeText(m);
   const el = eligibility(m, s);
   const idx = ORDER.indexOf(s.scenario);
   const chan = s.ch.sms ? "Text" : s.ch.push ? "Push" : s.ch.email ? "Email" : "Text";
-  const first = s.medical ? "Sat. 8 PM · 48 h before the storm" : "Sun. 8 PM · 24 h before the storm";
-  const med = s.medical ? " Have backup power ready for medical equipment, or a place to go." : "";
+  const first = priorityNeed(s) ? "Sat. 8 PM · 48 h before the storm" : "Sun. 8 PM · 24 h before the storm";
+  const call = forcedChannel(s, "call") ? " + phone call" : "";
+  const med =
+    (s.medical ? " Have backup power ready for medical equipment, or a place to go." : "") +
+    (s.needs.mobility ? " If you’d need help leaving, arrange it today." : "") +
+    (s.needs.facility ? " Test backup generators and check fuel." : "");
   const list = [
     { at: 1, title: "Before the storm", icon: "cloud-lightning" as const, meta: `${chan} · ${first}`, text: `AEP: A strong storm reaches ${m.P.area} Monday evening. There's a ${RISK[m.level].label.toLowerCase()} you lose power. If it goes out, plan to be without it until ${t.plan}. Charge your phone tonight.${med}` },
-    { at: 2, title: "Outage confirmed", icon: "zap-off" as const, meta: `${chan}${s.medical ? " + phone call" : ""} · within 5 min of outage`, text: `AEP: We know your power is out (reported 9:40 PM). You don't need to call. Our best guess: it's back ${t.range}. We'll text you if that changes.` },
+    { at: 2, title: "Outage confirmed", icon: "zap-off" as const, meta: `${chan}${call} · within 5 min of outage`, text: `AEP: We know your power is out (reported 9:40 PM). You don't need to call. Our best guess: it's back ${t.range}. We'll text you if that changes.` },
     { at: 3, title: "Estimate updated", icon: "clock" as const, meta: `${chan} · when the estimate moves 2+ hours`, text: `AEP update: Crews found ${damageText(s)} ${WHERE[s.where].at}.${m.e.stepped ? " They'll switch you back on before the repair is done." : ""} New estimate: back ${t.range}. Stay away from downed wires and call 911 if you see one.` },
     { at: 4, title: "Power restored", icon: "circle-check" as const, meta: `${chan} · as soon as crews finish`, text: `AEP: Power is back on in ${m.P.area} (${restoredAt(m)}). Still out? Your home may need its own repair. Reply OUT and we'll send someone.` },
   ];
@@ -499,8 +569,7 @@ export interface BotMessage {
 }
 export type ChatMessage = UserMessage | BotMessage;
 
-export interface ConciergeInput extends ModelInput {
-  medical: boolean;
+export interface ConciergeInput extends ModelInput, Declared {
   ch: Channels;
 }
 
@@ -553,11 +622,16 @@ export function answer(intent: Intent, s: ConciergeInput): BotMessage {
     ];
     if (long) pts.push({ k: "For a long outage", icon: "moon", kColor: "var(--muted-foreground)", v: "Fill water jugs, and plan where to stay warm or cool overnight." });
     if (s.medical) pts.push({ k: "Medical equipment", icon: "heart-pulse", kColor: "var(--high-ink)", v: `Charge backup batteries now. If you can’t power your equipment for ${m.hi} hours, plan a place to go. If you’re in danger, call 911.` });
+    // Declared needs only: nothing here is inferred from account or network data.
+    if (s.needs.mobility) pts.push({ k: "Getting help", icon: "accessibility", kColor: "var(--muted-foreground)", v: "Ask someone to check on you, and line up a ride now in case you need to leave. Elevators and electric garage doors stop without power, so learn the manual release." });
+    if (s.needs.hearing) pts.push({ k: "Staying informed", icon: "ear-off", kColor: "var(--muted-foreground)", v: "We’ll text you instead of calling. Turn on your phone’s emergency alerts with vibration and flash, and keep it charged." });
+    if (s.needs.vision) pts.push({ k: "Staying informed", icon: "eye-off", kColor: "var(--muted-foreground)", v: "We’ll call you with key updates. Keep a flashlight, a battery radio, and a charged phone in one spot you can find by touch, and keep walkways clear." });
+    if (s.needs.facility) pts.push({ k: "Critical facility", icon: "building-2", kColor: "var(--high-ink)", v: "Test backup generators and check fuel today. Confirm who decides to close or move people, and keep your facility contact up to date with AEP." });
     pts.push({ k: "Safety", icon: "triangle-alert", kColor: "var(--destructive)", v: "Stay at least 30 feet from downed wires, even if they look dead. Call 911. Run generators outside only." });
     return { ...base, accent: "var(--foreground)", headline: sc === "normal" ? "Nothing urgent. A few basics help." : "Here’s what helps most.", body: sc === "normal" ? "Keep a flashlight and a charged battery pack handy so you’re ready for the next storm." : `Your outage could last ${t.hours}.`, points: sc === "normal" ? pts.slice(0, 1) : pts };
   }
   if (intent === "alerts") {
-    return { ...base, accent: el.ok ? "var(--low)" : "var(--muted-foreground)", headline: el.ok ? "Yes, you’ll get alerts." : "Only if your power goes out.", body: el.ok ? (s.medical ? "Because you told us you rely on medical equipment, you’ll hear from us 48 hours ahead, and we’ll call you if the outage runs long." : "We’ll message you before the storm, when an outage is confirmed, when the estimate changes, and when power is back.") : "Your outage chance is low, so there’s no pre-storm alert. You’ll still hear from us right away if your power goes out.", points: [{ k: "Change this", icon: "settings", kColor: "var(--muted-foreground)", v: "Settings → Notifications." }] };
+    return { ...base, accent: el.ok ? "var(--low)" : "var(--muted-foreground)", headline: el.ok ? "Yes, you’ll get alerts." : "Only if your power goes out.", body: el.ok ? (needsAlertText(s) ?? "We’ll message you before the storm, when an outage is confirmed, when the estimate changes, and when power is back.") : "Your outage chance is low, so there’s no pre-storm alert. You’ll still hear from us right away if your power goes out.", points: [{ k: "Change this", icon: "settings", kColor: "var(--muted-foreground)", v: "Settings → Notifications." }] };
   }
   if (intent === "why") {
     const missing = missingText(m);
@@ -582,7 +656,7 @@ export function intentOf(q: string): Intent | null {
 export function llmContext(s: ConciergeInput) {
   const m = model(s);
   const t = timeText(m);
-  return `Location: ${m.P.area} (${m.P.kind}). Status: ${SC[s.scenario].label}. Storm gusts ${m.wind} mph. Outage chance: ${RISK[m.level].label}. Estimated restoration: ${t.range}. Damage (${whatIfActive(s) ? "customer what-if" : "as reported"}): ${damageText(s)} ${WHERE[s.where].at}, ${s.crews} crews, road access ${s.access}. ${m.e.stepped ? "Crews can switch the customer back on before the repair is done." : "The customer waits for the repair."} Medical equipment declared: ${s.medical ? "yes" : "no"}.`;
+  return `Location: ${m.P.area} (${m.P.kind}). Status: ${SC[s.scenario].label}. Storm gusts ${m.wind} mph. Outage chance: ${RISK[m.level].label}. Estimated restoration: ${t.range}. Damage (${whatIfActive(s) ? "customer what-if" : "as reported"}): ${damageText(s)} ${WHERE[s.where].at}, ${s.crews} crews, road access ${s.access}. ${m.e.stepped ? "Crews can switch the customer back on before the repair is done." : "The customer waits for the repair."} Declared by the customer: medical equipment ${s.medical ? "yes" : "no"}, mobility need ${s.needs.mobility ? "yes" : "no"}, deaf or hard of hearing ${s.needs.hearing ? "yes" : "no"}, blind or low vision ${s.needs.vision ? "yes" : "no"}, critical facility ${s.needs.facility ? "yes" : "no"}.`;
 }
 
 export function quickAsks(sc: Scenario): { intent: Intent; label: string }[] {

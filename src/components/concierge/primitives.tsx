@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Switch as SwitchPrimitive } from "@base-ui/react/switch";
 import {
+  AccessibilityIcon,
   BadgeCheckIcon,
   BatteryChargingIcon,
   BellIcon,
@@ -15,6 +16,8 @@ import {
   ClockIcon,
   CloudLightningIcon,
   CloudSunIcon,
+  EarOffIcon,
+  EyeOffIcon,
   GitCommitHorizontalIcon,
   GitForkIcon,
   GaugeIcon,
@@ -90,6 +93,9 @@ const ICONS: Record<IconName, LucideIcon> = {
   mountain: MountainIcon,
   "building-2": Building2Icon,
   route: RouteIcon,
+  accessibility: AccessibilityIcon,
+  "ear-off": EarOffIcon,
+  "eye-off": EyeOffIcon,
 };
 
 export function Icon({ name, size = 16, className, strokeWidth }: { name: IconName; size?: number; className?: string; strokeWidth?: number }) {

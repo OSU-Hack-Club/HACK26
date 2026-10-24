@@ -65,17 +65,24 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
   - food safety
   - water and somewhere to stay overnight when the outage could be long
 - **Safety messages are labeled clearly**: stay 30 feet from downed wires, call 911, and run generators outside only.
-- **Medical needs are declared by the customer only**, in Settings. When declared, the app adds guidance on backup power and a place to go, alerts 48 hours ahead, and calls if the outage runs long. It never guesses medical status from utility data.
+- **Declared needs adapt the guidance.** In Settings → Notifications → Your Needs, the customer can declare any of these. Each one adds its own preparation step:
+  - **Powered medical equipment:** backup batteries and a place to go.
+  - **Hard to leave home quickly** (stairs, wheelchair, no car): someone to check in, a ride lined up early, and the manual release for elevators and garage doors.
+  - **Deaf or hard of hearing:** texts instead of calls, and phone emergency alerts with vibration and flash.
+  - **Blind or low vision:** phone calls for key updates, and essentials kept in one spot that can be found by touch.
+  - **Critical facility** (school, water treatment, care home, shelter): test generators and check fuel, and confirm who decides to close or move people.
+- Only the customer can turn these on. The app never guesses them from account, network or ARCOS data, and never shows them on a map.
 
 ### 4. Alerts and proactive communications
 
-- **Eligibility rule:** the customer gets pre-storm alerts when their chance is Medium or higher, or they declared medical equipment. Everyone gets alerted once an outage is confirmed.
+- **Eligibility rule:** the customer gets pre-storm alerts when their chance is Medium or higher, or they declared medical equipment, a mobility need, or a critical facility. Everyone gets alerted once an outage is confirmed.
 - **Timing and escalation:**
-  - before the storm: 24 hours ahead, or 48 hours ahead with medical needs
+  - before the storm: 24 hours ahead, or 48 hours ahead with a medical, mobility or facility need
   - outage confirmed: within 5 minutes
   - estimate updated: whenever the estimate moves 2 or more hours
   - power restored: as soon as crews finish
-  - a phone call is added for customers who declared medical needs
+  - long outages: after 4 hours a welfare check (medical) or a hand-off to AEP's critical-facility team (facility); after 12 hours a check-in (mobility); otherwise warming and cooling centers after 24 hours
+  - a phone call is added for medical, vision or facility needs. Customers who are deaf or hard of hearing get texts instead, and the text channel stays on
 - **Channels:** push, text, email and phone call, chosen by the customer. Text messages show their length in characters and how many texts they take.
 - **Messages:** short, plain-language drafts for pre-storm, outage-confirmed, estimate-updated and restoration-complete. The inbox also carries weather advisories, downed-wire warnings, crew updates and a follow-up survey.
 
@@ -85,7 +92,7 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
 - **Disclosed:** confidence, what assumptions were made, which data is missing, and what could change the answer. The "How We Calculated This" section lists every restoration assumption.
 - **Privacy:**
   - No premise numbers, addresses, coordinates, device IDs, employee details or life-support flags leave the data build.
-  - Area names are fictional, and the home marker on the map is offset from real equipment.
+  - Area names are fictional, and the home marker on the map is offset from real equipment. Hospital, fire and ambulance markers are snapped to a ~1 km grid, so they show a general area, not an exact spot.
   - Real-premise lookup happens server-side with hashed IDs.
 - **Fallback:** questions the built-in answers don't cover go to an LLM (Claude). It is limited to the current context, told never to promise times, and told to keep AEP-confirmed facts apart from estimates. If the AI isn't configured or can't answer reliably, the customer gets a clear "I can't answer that one reliably, contact AEP customer service" card.
 

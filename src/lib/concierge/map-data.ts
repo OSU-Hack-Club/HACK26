@@ -27,6 +27,9 @@ export interface MapData {
 const km = (a: LngLat, b: LngLat) =>
   Math.hypot((a[0] - b[0]) * 111.32 * Math.cos((a[1] * Math.PI) / 180), (a[1] - b[1]) * 110.57);
 
+/** Snap to a 0.01° grid (~1 km): hospitals, fire and ambulance stations are shown as general areas, never exact pins. */
+const coarse = (v: number) => Math.round(v * 100) / 100;
+
 function hull(input: LngLat[]): LngLat[] {
   const pts = input.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const cr = (o: LngLat, a: LngLat, b: LngLat) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
@@ -105,7 +108,7 @@ export function getMapData(): MapData {
     bbox: d.bbox,
     lines: { type: "FeatureCollection", features: lines },
     dmg: { type: "FeatureCollection", features: dmg },
-    fac: d.fac,
+    fac: d.fac.map((f) => ({ ...f, x: coarse(f.x), y: coarse(f.y) })),
     zoneOut: zone(2.5),
     zoneRest: zone(1.2),
     area: circle(home, 0.45),

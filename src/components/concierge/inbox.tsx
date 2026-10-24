@@ -301,7 +301,7 @@ export function InboxBody() {
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="font-medium">Notification Settings</span>
             <span className="truncate text-xs text-muted-foreground">
-              {el.ok ? "Storm alerts on" : "Outage alerts only"} · {channelList(state.ch, state.medical) || "No channels"}
+              {el.ok ? "Storm alerts on" : "Outage alerts only"} · {channelList(state.ch, state) || "No channels"}
             </span>
           </span>
           <ChevronRightIcon size={16} aria-hidden />

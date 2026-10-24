@@ -36,14 +36,20 @@ import {
   PREMISES,
   SC,
   TONE,
+  NEED_INFO,
   channelList,
   channelOn,
   eligibility,
+  escalation,
+  forcedChannel,
+  needsAlertText,
   previewMessages,
+  priorityNeed,
   type Channels,
+  type Needs,
   type PreviewMessage,
 } from "@/lib/concierge/model";
-import { Dot, Panel, SectionHeader, TouchSwitch } from "@/components/concierge/primitives";
+import { Dot, Icon, Panel, SectionHeader, TouchSwitch } from "@/components/concierge/primitives";
 import { useConcierge, type Screen } from "@/components/concierge/store";
 
 /** Show the judges' scenario switcher. Hide it in production. */
@@ -122,7 +128,7 @@ export function SettingsScreen({ hideBack = false }: { hideBack?: boolean }) {
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="font-medium">Notifications</span>
             <span className="text-xs text-muted-foreground">
-              {el.ok ? "Storm alerts on" : "Outage alerts only"} · {channelList(state.ch, state.medical)}
+              {el.ok ? "Storm alerts on" : "Outage alerts only"} · {channelList(state.ch, state)}
             </span>
           </span>
           <ChevronRightIcon size={16} aria-hidden />
@@ -209,30 +215,35 @@ export function NotificationsScreen() {
   const el = eligibility(m, state);
   const B = RISK[m.level];
   const medId = React.useId();
+  const needId = React.useId();
   const chId = React.useId();
+  const priority = priorityNeed(state);
+  const esc = escalation(state);
 
   const toggleChannel = (k: keyof Channels) => {
-    if (k === "call" && state.medical) {
-      flash("Phone calls stay on while medical equipment is declared");
+    const forced = forcedChannel(state, k);
+    if (forced) {
+      flash(forced.replace(/^On /, "Stays on "));
       return;
     }
     set((s) => ({ ch: { ...s.ch, [k]: !s.ch[k] } }));
   };
+  const setNeed = (k: keyof Needs, v: boolean) => set((s) => ({ needs: { ...s.needs, [k]: v } }));
 
   const rules = [
     { ok: el.riskOk, t: "Outage Chance Is Medium or High", d: sc === "normal" ? "No storm in the forecast." : `Yours is ${B.label}.` },
-    { ok: state.medical, t: "Medical Equipment Declared", d: state.medical ? "Earlier alerts and a phone call if it runs long." : "Optional. Turn on above if it applies to you." },
+    {
+      ok: priority,
+      t: "Medical, Mobility, or Facility Need Declared",
+      d: priority ? "Earlier alerts and a check-in if it runs long." : "Optional. Turn on above if it applies to you.",
+    },
     { ok: true, t: "Phone Number on File", d: "Needed for texts and calls." },
   ];
   const timing = [
-    { k: "Before a Storm", v: el.ok ? (state.medical ? "48 hours ahead." : "24 hours ahead.") : "Only when your chance is Medium or High." },
+    { k: "Before a Storm", v: el.ok ? (priority ? "48 hours ahead." : "24 hours ahead.") : "Only when your chance is Medium or High." },
     { k: "If It Goes Out", v: "Within 5 minutes of AEP confirming the outage." },
     { k: "Updates", v: "Whenever our estimate moves by 2 hours or more, or every 6 hours if nothing changes." },
-    {
-      k: "Escalate",
-      v: state.medical ? "If the outage passes 4 hours, we call you and flag your home for a welfare check." : "If the outage passes 24 hours, we send a list of warming and cooling centers.",
-      warn: state.medical,
-    },
+    { k: "Escalate", v: esc.v, warn: esc.warn },
   ];
 
   return (
@@ -248,26 +259,43 @@ export function NotificationsScreen() {
         <div className="text-[19px] leading-tight font-semibold tracking-[-0.01em] text-pretty">{el.ok ? "You Qualify for Storm Alerts" : "Outage Alerts Only"}</div>
         <p className="text-pretty">
           {el.ok
-            ? state.medical
-              ? "Because you rely on medical equipment, we’ll alert you earlier and call you if an outage runs long."
-              : "We’ll warn you before a storm, confirm any outage, and keep you updated until power is back."
+            ? (needsAlertText(state) ?? "We’ll warn you before a storm, confirm any outage, and keep you updated until power is back.")
             : "Your outage chance is low, so there’s no pre-storm alert right now."}
         </p>
       </div>
 
-      <SectionHeader>Medical Needs</SectionHeader>
-      <label htmlFor={medId} className="flex cursor-pointer items-center gap-3 rounded-[14px] bg-card p-3.5 text-card-foreground ring-1 ring-foreground/10">
-        <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-high-bg text-high-ink">
-          <HeartPulseIcon size={17} aria-hidden />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="font-semibold">I Rely on Powered Medical Equipment</span>
-          <span className="text-xs text-pretty text-muted-foreground">
-            Only you can turn this on. We use it to alert you earlier and call you. It’s never shared or shown on any map.
+      <SectionHeader>Your Needs</SectionHeader>
+      <Panel className="overflow-hidden">
+        <label htmlFor={medId} className="flex cursor-pointer items-center gap-3 p-3.5">
+          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-high-bg text-high-ink">
+            <HeartPulseIcon size={17} aria-hidden />
           </span>
-        </span>
-        <TouchSwitch id={medId} checked={state.medical} onCheckedChange={(medical) => set({ medical })} />
-      </label>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-semibold">I Rely on Powered Medical Equipment</span>
+            <span className="text-xs text-pretty text-muted-foreground">We alert you earlier and call you if an outage runs long.</span>
+          </span>
+          <TouchSwitch id={medId} checked={state.medical} onCheckedChange={(medical) => set({ medical })} />
+        </label>
+        {(Object.keys(NEED_INFO) as (keyof Needs)[]).map((k) => {
+          const n = NEED_INFO[k];
+          const id = `${needId}-${k}`;
+          return (
+            <label key={k} htmlFor={id} className="flex cursor-pointer items-center gap-3 border-t p-3.5">
+              <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-brand-soft text-brand-ink">
+                <Icon name={n.icon} size={17} />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="font-semibold">{n.t}</span>
+                <span className="text-xs text-pretty text-muted-foreground">{n.d}</span>
+              </span>
+              <TouchSwitch id={id} checked={state.needs[k]} onCheckedChange={(v) => setNeed(k, v)} />
+            </label>
+          );
+        })}
+      </Panel>
+      <p className="-mt-1 px-1 text-xs text-pretty text-muted-foreground">
+        Only you can turn these on. We never guess them from your account or the grid, and they’re never shared or shown on any map.
+      </p>
 
       <SectionHeader>How We Reach You</SectionHeader>
       <Panel className="overflow-hidden">
@@ -278,9 +306,9 @@ export function NotificationsScreen() {
               <c.icon size={18} className="shrink-0" aria-hidden />
               <span className="flex flex-1 flex-col">
                 <span className="font-medium">{c.label}</span>
-                <span className="text-xs text-muted-foreground">{c.k === "call" && state.medical ? "On because of medical equipment" : c.sub}</span>
+                <span className="text-xs text-muted-foreground">{forcedChannel(state, c.k) ?? c.sub}</span>
               </span>
-              <TouchSwitch id={id} checked={channelOn(state.ch, state.medical, c.k)} onCheckedChange={() => toggleChannel(c.k)} />
+              <TouchSwitch id={id} checked={channelOn(state.ch, state, c.k)} onCheckedChange={() => toggleChannel(c.k)} />
             </label>
           );
         })}
