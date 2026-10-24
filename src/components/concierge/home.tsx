@@ -79,7 +79,7 @@ export function EventCard({ className }: { className?: string }) {
     <button
       type="button"
       className={cn(
-        "flex cursor-pointer flex-col gap-2.5 rounded-2xl bg-background p-3.5 text-left shadow-[0_0_0_1px_var(--ring-card),var(--shadow-lg)] transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "group/event flex cursor-pointer flex-col gap-2.5 rounded-2xl bg-background p-3.5 text-left shadow-[0_0_0_1px_var(--ring-card),var(--shadow-lg)] transition-[background-color,scale] duration-150 hover:bg-muted active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         className,
       )}
       onClick={(e) => {
@@ -89,7 +89,13 @@ export function EventCard({ className }: { className?: string }) {
     >
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         <MapPinIcon size={13} aria-hidden />
-        {m.P.area} · {m.P.id}
+        <span className="min-w-0 flex-1 truncate">
+          {m.P.area} · {m.P.id}
+        </span>
+        <span className="-my-1 flex shrink-0 items-center gap-0.5 rounded-full bg-brand-soft py-1 pr-1.5 pl-2.5 text-xs font-semibold text-brand-ink">
+          Details
+          <ChevronRightIcon size={14} className="transition-transform group-hover/event:translate-x-0.5" aria-hidden />
+        </span>
       </div>
       <div className="text-xl leading-tight font-semibold tracking-[-0.02em] text-pretty">{eventTitle(m, sc)}</div>
       <div className="text-[13px] text-pretty text-muted-foreground">{estimateLine(m, sc)}</div>
