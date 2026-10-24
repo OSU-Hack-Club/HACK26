@@ -44,11 +44,11 @@ export interface Premise extends PremiseRecord {
 
 const NORMS = featureSource.dataset.norms;
 
-const toPremise = (r: PremiseRecord): Premise => ({
+const toPremise = (r: PremiseRecord, norms: typeof NORMS = NORMS): Premise => ({
   ...r,
   circuit: r.features.circuit,
   backfeed: r.features.hasTie === true,
-  remote: r.features.premiseDensity <= NORMS.premiseDensity.p10,
+  remote: r.features.premiseDensity <= norms.premiseDensity.p10,
 });
 
 /** Demo premises from src/data/risk-features.json (built by `npm run data:risk`). */
@@ -92,7 +92,7 @@ export const SC: Record<Scenario, { label: string; tone: ToneKey; title: string;
   restored: { label: "Power Restored", tone: "low", title: "Power Restored", tag: "Restored" },
 };
 
-const DAY = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const DAY = ["Mon.", "Tue.", "Wed.", "Thu.", "Fri."];
 const DAYL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const SMALL = new Set(["a", "an", "the", "and", "or", "but", "of", "to", "in", "on", "at", "for", "by", "vs", "via"]);
 
@@ -109,7 +109,7 @@ export const tc = (str: string) =>
     )
     .join(" ");
 
-/** Hours since Monday 00:00 → "Tue 4 AM" (or "Tue 4:30 AM" with minutes). */
+/** Hours since Monday 00:00 → "Tue. 4 AM" (or "Tue. 4:30 AM" with minutes). */
 export function fmt(h: number, withMin = false) {
   let d = Math.floor(h / 24);
   const hr = h - d * 24;
@@ -150,6 +150,18 @@ export interface ModelInput extends WhatIf {
   wind: number;
   /** Debug only: force the outage-chance level instead of the calculated one. */
   riskOverride?: RiskLevel | null;
+  /**
+   * A premise fetched at runtime (e.g. from /api/premise, backed by DynamoDB), used instead of the
+   * static demo premises. Carries its own norms so scaling matches the snapshot it came from.
+   * When unset, the model uses the built-in demo premises. See DEVELOPMENT.md › Making the data dynamic.
+   */
+  premiseOverride?: RuntimePremise | null;
+}
+
+/** A premise plus the snapshot norms it was scored against, as returned by the DynamoDB lookup. */
+export interface RuntimePremise {
+  record: PremiseRecord;
+  norms: typeof NORMS;
 }
 
 export interface Model {
@@ -173,10 +185,11 @@ export interface Model {
 }
 
 export function model(s: ModelInput): Model {
-  const P = PREMISES[s.premise] ?? PREMISES[DEFAULT_PREMISE];
+  const P = s.premiseOverride ? toPremise(s.premiseOverride.record, s.premiseOverride.norms) : (PREMISES[s.premise] ?? PREMISES[DEFAULT_PREMISE]);
+  const norms = s.premiseOverride?.norms ?? NORMS;
   const wind = s.scenario === "normal" ? 18 : s.wind;
   const w = windStrength(wind);
-  const ctx = { storm: s.scenario !== "normal", wind, features: P.features, norms: NORMS };
+  const ctx = { storm: s.scenario !== "normal", wind, features: P.features, norms };
   const risk = assessRisk(ctx);
   const confidence = assessConfidence(ctx, risk);
   const conf = confidence.level;
@@ -203,6 +216,18 @@ export function timeText(m: Model) {
 }
 
 export const restoredAt = (m: Model) => fmt(m.start + m.mid * 0.95, true);
+
+/** Map event card title: "Mon. 6 PM: Strong Winds". */
+export function eventTitle(m: Model, sc: Scenario) {
+  const [at, cond] = {
+    normal: [fmt(m.start, true), "No Outages"],
+    watch: [fmt(18), "Strong Winds"],
+    outage: [fmt(m.start, true), "Power Outage"],
+    restoring: [fmt(m.nowH, true), "Crews Restoring Power"],
+    restored: [restoredAt(m), "Power Restored"],
+  }[sc];
+  return `${at}: ${cond}`;
+}
 
 export function damageText(s: WhatIf) {
   const a: string[] = [];
@@ -429,7 +454,7 @@ export function previewMessages(m: Model, s: WhatIf & { scenario: Scenario; medi
   const el = eligibility(m, s);
   const idx = ORDER.indexOf(s.scenario);
   const chan = s.ch.sms ? "Text" : s.ch.push ? "Push" : s.ch.email ? "Email" : "Text";
-  const first = s.medical ? "Sat 8 PM · 48 h before the storm" : "Sun 8 PM · 24 h before the storm";
+  const first = s.medical ? "Sat. 8 PM · 48 h before the storm" : "Sun. 8 PM · 24 h before the storm";
   const med = s.medical ? " Have backup power ready for medical equipment, or a place to go." : "";
   const list = [
     { at: 1, title: "Before the storm", icon: "cloud-lightning" as const, meta: `${chan} · ${first}`, text: `AEP: A strong storm reaches ${m.P.area} Monday evening. There's a ${RISK[m.level].label.toLowerCase()} you lose power. If it goes out, plan to be without it until ${t.plan}. Charge your phone tonight.${med}` },
@@ -482,8 +507,8 @@ export interface ConciergeInput extends ModelInput {
 let msgSeq = 0;
 export const nextId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(msgSeq++).toString(36)}`;
 
-export function greeting(premise: string): BotMessage {
-  const P = PREMISES[premise] ?? PREMISES[DEFAULT_PREMISE];
+export function greeting(premise: string, override?: RuntimePremise | null): BotMessage {
+  const P = override ? toPremise(override.record, override.norms) : (PREMISES[premise] ?? PREMISES[DEFAULT_PREMISE]);
   return { id: "g", role: "bot", accent: "var(--brand)", headline: "Hi. Ask me anything about your power.", body: `I’m using the live estimate for ${P.area}. I’ll explain things in plain words and tell you when I’m not sure.`, points: [] };
 }
 
@@ -611,8 +636,8 @@ export function estimateLine(m: Model, sc: Scenario) {
 export function timeline(m: Model, sc: Scenario) {
   const idx = ORDER.indexOf(sc);
   const events = [
-    { at: 1, title: "Watch Alert Issued", t: "Sat 6:00 PM" },
-    { at: 2, title: "Power Outage Detected", t: "Mon 9:40 PM" },
+    { at: 1, title: "Watch Alert Issued", t: "Sat. 6:00 PM" },
+    { at: 2, title: "Power Outage Detected", t: "Mon. 9:40 PM" },
     { at: 3, title: "Crews On Site · Estimate Updated", t: fmt(m.nowH, true) },
     { at: 4, title: "Power Restored", t: restoredAt(m) },
   ]
@@ -623,10 +648,10 @@ export function timeline(m: Model, sc: Scenario) {
 
 export const weather = (sc: Scenario, wind: number) => ({
   icon: (sc === "normal" ? "cloud-sun" : sc === "watch" ? "wind" : sc === "restored" ? "sun" : "cloud-lightning") as IconName,
-  label: sc === "normal" ? "Calm · 8 mph" : sc === "watch" ? `Mon · ${wind} mph gusts` : sc === "restored" ? "Clearing · 12 mph" : `Gusts ${wind} mph`,
+  label: sc === "normal" ? "Calm · 8 mph" : sc === "watch" ? `Mon. · ${wind} mph gusts` : sc === "restored" ? "Clearing · 12 mph" : `Gusts ${wind} mph`,
 });
 
-/** Hours since Monday 00:00 → "Mon Morning", "Tue Afternoon", "Mon Night". Hours before 5 AM count as that day's night. */
+/** Hours since Monday 00:00 → "Mon. Morning", "Tue. Afternoon", "Mon. Night". Hours before 5 AM count as that day's night. */
 export function dayPart(h: number) {
   const hr = h % 24;
   const d = Math.min(Math.floor((hr < 5 ? h - 5 : h) / 24), 4);

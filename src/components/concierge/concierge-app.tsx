@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { MoonIcon, SettingsIcon, SparklesIcon, ArrowUpIcon, SunIcon } from "lucide-react";
+import { BellIcon, HouseIcon, MoonIcon, SettingsIcon, SparklesIcon, ArrowUpIcon, SunIcon, type LucideIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
@@ -14,14 +14,13 @@ import { statusLabel } from "@/lib/concierge/model";
 import { DEBUG_MENU, DebugMenu } from "@/components/concierge/debug-menu";
 import { ChatComposer, ChatHeader, ChatThread, QuickAskChips } from "@/components/concierge/chat";
 import { DashboardSections, EventCard, EventMapHero, FallbackCard, useMapTheme } from "@/components/concierge/home";
-import { InboxBody, InboxButton, InboxHeader } from "@/components/concierge/inbox";
+import { InboxBody, InboxButton, InboxHeader, useInbox } from "@/components/concierge/inbox";
 import { OutageMap } from "@/components/concierge/outage-map";
 import { StatusPill } from "@/components/concierge/primitives";
 import { LocationScreen, NotificationsScreen, SettingsScreen } from "@/components/concierge/settings";
 import { StatusBody, StatusHeader } from "@/components/concierge/status";
-import { ConciergeProvider, useConcierge, useMediaQuery } from "@/components/concierge/store";
+import { ConciergeProvider, DESKTOP, useConcierge, useMediaQuery } from "@/components/concierge/store";
 
-const DESKTOP = "(min-width: 1024px)";
 const WIDE = "(min-width: 1536px)";
 
 export function ConciergeApp() {
@@ -36,12 +35,16 @@ export function ConciergeApp() {
   );
 }
 
+/**
+ * Mobile logo. It gives way to the status pill: on narrow phones it shrinks (down to
+ * 40px wide, the header's side column minimum) so the pill can show its full label.
+ */
 function Logo() {
-  const props = { width: 104, height: 44, priority: true } as const;
+  const props = { width: 61, height: 32, priority: true } as const;
   return (
-    <span className="flex h-11 w-[104px] shrink-0 items-center">
-      <Image src="/aep-logo-light.png" alt="American Electric Power" {...props} className="h-11 w-[104px] object-contain dark:hidden" />
-      <Image src="/aep-logo-dark.png" alt="American Electric Power" {...props} className="hidden h-11 w-[104px] object-contain dark:block" />
+    <span className="flex h-8 w-[61px] max-w-full items-center">
+      <Image src="/aep-logo-light.png" alt="American Electric Power" {...props} className="size-full object-contain object-left dark:hidden" />
+      <Image src="/aep-logo-dark.png" alt="American Electric Power" {...props} className="hidden size-full object-contain object-left dark:block" />
     </span>
   );
 }
@@ -61,7 +64,7 @@ function DesktopLogo() {
   );
 }
 
-function HeaderPill({ className }: { className?: string }) {
+function HeaderPill({ compact, className }: { compact?: boolean; className?: string }) {
   const { state, m, openStatus } = useConcierge();
   const sc = state.scenario;
   return (
@@ -70,6 +73,7 @@ function HeaderPill({ className }: { className?: string }) {
       label={statusLabel(sc, m)}
       glowing={sc !== "normal" && state.seen !== sc}
       onClick={openStatus}
+      compact={compact}
       className={className}
     />
   );
@@ -84,11 +88,11 @@ function ScrollTopOn({ when }: { when: unknown }) {
   return <div ref={ref} aria-hidden />;
 }
 
-function ScreenContent({ withMap }: { withMap: boolean }) {
+function ScreenContent({ withMap, hideBack = false }: { withMap: boolean; hideBack?: boolean }) {
   const { state } = useConcierge();
   switch (state.screen) {
     case "settings":
-      return <SettingsScreen />;
+      return <SettingsScreen hideBack={hideBack} />;
     case "notifications":
       return <NotificationsScreen />;
     case "location":
@@ -104,8 +108,8 @@ function ScreenContent({ withMap }: { withMap: boolean }) {
   }
 }
 
-function AskBar({ showSettings }: { showSettings: boolean }) {
-  const { openChat, set } = useConcierge();
+function AskBar() {
+  const { openChat } = useConcierge();
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-3 pt-2.5 pb-[max(10px,env(safe-area-inset-bottom))]">
       <QuickAskChips />
@@ -121,11 +125,6 @@ function AskBar({ showSettings }: { showSettings: boolean }) {
             <ArrowUpIcon size={16} aria-hidden />
           </span>
         </button>
-        {showSettings && (
-          <Button variant="outline" size="icon" onClick={() => set({ screen: "settings" })} aria-label="Settings" className="size-[46px] rounded-full">
-            <SettingsIcon className="size-[19px]" />
-          </Button>
-        )}
       </div>
     </div>
   );
@@ -143,32 +142,123 @@ const sheetHeight = (h: string) =>
   ({ "--drawer-content-height": h, "--drawer-content-max-height": h }) as React.CSSProperties;
 
 // ---------------------------------------------------------------------------
-// Mobile: single column, map-first, sheets slide up from the bottom.
+// Mobile: single column, map-first, with a bottom nav for Home, Ask AI, Alerts, and
+// Settings. Event details still slide up as a sheet.
+
+type Tab = "home" | "chat" | "alerts" | "settings";
+
+/** The chat and inbox flags double as tabs on mobile; any non-home screen is the Settings tab. */
+function useTab(): Tab {
+  const { state } = useConcierge();
+  if (state.chatOpen) return "chat";
+  if (state.inboxOpen) return "alerts";
+  return state.screen === "home" ? "home" : "settings";
+}
+
+function BottomNav() {
+  const { set, openChat, openInbox } = useConcierge();
+  const { unread } = useInbox();
+  const tab = useTab();
+  const items: { id: Tab; label: string; icon: LucideIcon; go: () => void; badge?: number }[] = [
+    { id: "home", label: "Home", icon: HouseIcon, go: () => set({ screen: "home", chatOpen: false, inboxOpen: false }) },
+    { id: "chat", label: "Ask AI", icon: SparklesIcon, go: openChat },
+    { id: "alerts", label: "Alerts", icon: BellIcon, go: openInbox, badge: unread },
+    { id: "settings", label: "Settings", icon: SettingsIcon, go: () => set({ screen: "settings", chatOpen: false, inboxOpen: false }) },
+  ];
+  return (
+    // Frosted glass bar floating over the content, like the header.
+    <nav
+      aria-label="Main"
+      className="absolute inset-x-0 bottom-0 z-20 flex h-(--mobile-nav) border-t border-foreground/10 bg-background/60 px-2 pt-1.5 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-1px_12px_-6px_rgb(0_0_0/0.25)] backdrop-blur-xl backdrop-saturate-150"
+    >
+      {items.map(({ id, label, icon: TabIcon, go, badge }) => {
+        const active = tab === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={go}
+            aria-current={active ? "page" : undefined}
+            aria-label={badge ? `${label}, ${badge} unread` : label}
+            className={cn(
+              "group/tab flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors outline-none",
+              active ? "text-brand-ink" : "text-muted-foreground",
+            )}
+          >
+            {/* Pill behind the active icon; also the keyboard focus ring. */}
+            <span
+              className={cn(
+                "relative flex h-8 w-14 items-center justify-center rounded-full transition-colors group-focus-visible/tab:ring-2 group-focus-visible/tab:ring-ring/50",
+                active && "bg-brand-soft",
+              )}
+            >
+              <TabIcon size={21} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+              {!!badge && (
+                <span className="absolute -top-1 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-high px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-background">
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              )}
+            </span>
+            {label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
 
 function MobileShell() {
   const { state, closeSheets } = useConcierge();
   const isDesktop = useMediaQuery(DESKTOP);
+  const tab = useTab();
   const onOpenChange = (open: boolean) => {
     if (!open) closeSheets();
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-page lg:hidden">
-      <header className="flex shrink-0 items-center gap-2.5 border-b bg-background pt-[max(6px,env(safe-area-inset-top))] pr-3 pb-2.5 pl-4">
+    <div
+      className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-page lg:hidden"
+      style={
+        {
+          "--mobile-header": "calc(max(6px, env(safe-area-inset-top)) + 46px)",
+          "--mobile-nav": "calc(max(8px, env(safe-area-inset-bottom)) + 58px)",
+        } as React.CSSProperties
+      }
+    >
+      {/* Frosted glass bar floating over the content, so the map and page scroll beneath it.
+          Equal side columns keep the pill centered; the logo shrinks before the label truncates. */}
+      <header className="absolute inset-x-0 top-0 z-20 grid h-(--mobile-header) grid-cols-[minmax(40px,1fr)_minmax(0,auto)_minmax(40px,1fr)] items-center gap-2 border-b border-foreground/10 bg-background/60 pt-[max(6px,env(safe-area-inset-top))] pr-3 pb-2.5 pl-3 shadow-[0_1px_12px_-6px_rgb(0_0_0/0.25)] backdrop-blur-xl backdrop-saturate-150">
         <Logo />
-        <div className="flex-1" />
-        <HeaderPill className="min-w-0" />
-        <InboxButton />
+        <HeaderPill compact />
+        <span aria-hidden />
       </header>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <ScrollTopOn when={state.screen} />
-        <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-3 pt-3.5 pb-4">
-          <ScreenContent withMap />
-        </main>
-      </ScrollArea>
+      {tab === "chat" ? (
+        <section className="flex min-h-0 flex-1 flex-col bg-background pt-(--mobile-header) pb-(--mobile-nav)" aria-label="Outage Concierge chat">
+          <ChatHeader />
+          <ScrollArea className="min-h-0 flex-1">
+            <ChatThread />
+          </ScrollArea>
+          <ChatComposer />
+        </section>
+      ) : tab === "alerts" ? (
+        <section className="flex min-h-0 flex-1 flex-col bg-background pt-(--mobile-header)" aria-label="Notifications">
+          <InboxHeader closable={false} titleAs="h1" />
+          <ScrollArea className="min-h-0 flex-1">
+            <InboxBody />
+            <div aria-hidden className="h-(--mobile-nav)" />
+          </ScrollArea>
+        </section>
+      ) : (
+        <ScrollArea className="min-h-0 flex-1">
+          <ScrollTopOn when={state.screen} />
+          <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-3 pt-[calc(var(--mobile-header)+0.875rem)] pb-[calc(var(--mobile-nav)+1.25rem)]">
+            <ScreenContent withMap hideBack />
+          </main>
+        </ScrollArea>
+      )}
 
-      {state.screen === "home" && <AskBar showSettings />}
+      <BottomNav />
 
       <Drawer open={state.statusOpen && !isDesktop} onOpenChange={onOpenChange}>
         <DrawerContent className="rounded-t-[20px] shadow-[var(--shadow-lg)]" style={sheetHeight("93dvh")}>
@@ -181,27 +271,6 @@ function MobileShell() {
         </DrawerContent>
       </Drawer>
 
-      <Drawer open={state.inboxOpen && !isDesktop} onOpenChange={onOpenChange}>
-        <DrawerContent className="rounded-t-[20px] shadow-[var(--shadow-lg)]" style={sheetHeight("90dvh")}>
-          <SheetHandle />
-          <InboxHeader titleAs={DrawerTitle} />
-          <ScrollArea className="min-h-0 flex-1">
-            <InboxBody />
-            <div className="h-[env(safe-area-inset-bottom)]" />
-          </ScrollArea>
-        </DrawerContent>
-      </Drawer>
-
-      <Drawer open={state.chatOpen && !isDesktop} onOpenChange={onOpenChange}>
-        <DrawerContent className="rounded-t-[20px] shadow-[var(--shadow-lg)]" style={sheetHeight("90dvh")} aria-label="Outage Concierge chat">
-          <SheetHandle />
-          <ChatHeader onClose={closeSheets} />
-          <ScrollArea className="min-h-0 flex-1">
-            <ChatThread />
-          </ScrollArea>
-          <ChatComposer className="pb-[max(10px,env(safe-area-inset-bottom))]" />
-        </DrawerContent>
-      </Drawer>
     </div>
   );
 }
@@ -280,7 +349,7 @@ function DesktopShell() {
               <ScreenContent withMap={false} />
             </main>
           </ScrollArea>
-          {state.screen === "home" && !isWide && <AskBar showSettings={false} />}
+          {state.screen === "home" && !isWide && <AskBar />}
         </div>
 
         <aside className="hidden min-h-0 flex-col border-l bg-background 2xl:flex" aria-label="Outage Concierge chat">

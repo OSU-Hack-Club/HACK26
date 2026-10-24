@@ -20,6 +20,7 @@ import {
   type Channels,
   type Intent,
   type Model,
+  type RuntimePremise,
   type Scenario,
 } from "@/lib/concierge/model";
 import type { RiskLevel } from "@/lib/concierge/risk";
@@ -39,6 +40,8 @@ export interface ConciergeState {
   read: Record<string, boolean>;
   premise: string;
   unknownId: string | null;
+  /** A real premise fetched from /api/premise (DynamoDB). null = using the static demo premises. */
+  premiseOverride: RuntimePremise | null;
   wind: number;
   poles: number;
   spans: number;
@@ -89,6 +92,7 @@ const INITIAL: ConciergeState = {
   read: {},
   premise: "P-20417",
   unknownId: null,
+  premiseOverride: null,
   medical: false,
   ch: { push: true, sms: true, email: false, call: false },
   chat: [greeting("P-20417")],
@@ -151,7 +155,8 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
   );
 
   const pickPremise = React.useCallback(
-    (id: string) => set({ premise: id, unknownId: null, screen: "home", chat: [greeting(id)] }),
+    // Picking a demo premise clears any fetched override so the static profile is used.
+    (id: string) => set({ premise: id, unknownId: null, premiseOverride: null, screen: "home", chat: [greeting(id)] }),
     [set],
   );
 
@@ -160,8 +165,25 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
       const v = raw.trim().toUpperCase();
       if (!v) return;
       const hit = PREMISES[v] ?? Object.values(PREMISES).find((x) => x.circuit === v);
-      if (hit) pickPremise(hit.id);
-      else set({ unknownId: v, screen: "home" });
+      if (hit) {
+        pickPremise(hit.id);
+        return;
+      }
+      // Not a demo premise: try the server-side DynamoDB lookup. A real premise returns its anonymized
+      // record + snapshot norms; anything else (404, lookup off, error) falls back to "unknown ID".
+      fetch("/api/premise", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ premise: v }),
+      })
+        .then(async (r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          // Response shape from src/app/api/premise/route.ts.
+          const { premise, norms } = (await r.json()) as { premise: RuntimePremise["record"]; norms: RuntimePremise["norms"] };
+          const override: RuntimePremise = { record: premise, norms };
+          set({ premiseOverride: override, premise: premise.id, unknownId: null, screen: "home", chat: [greeting(premise.id, override)] });
+        })
+        .catch(() => set({ unknownId: v, premiseOverride: null, screen: "home" }));
     },
     [set, pickPremise],
   );
@@ -198,6 +220,9 @@ export function useConcierge() {
   if (!ctx) throw new Error("useConcierge must be used within <ConciergeProvider>.");
   return ctx;
 }
+
+/** Desktop layout breakpoint (Tailwind `lg`). */
+export const DESKTOP = "(min-width: 1024px)";
 
 /** Matches a media query on the client; false during SSR. */
 export function useMediaQuery(query: string) {

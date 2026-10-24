@@ -142,15 +142,22 @@ function GlowLayers({ tone, glowing, pulse = false }: { tone: Tone; glowing: boo
   );
 }
 
-/** Header status pill. Glows and pings until the current status has been opened. */
-export function StatusPill({ scenario, label, glowing, onClick, className }: { scenario: Scenario; label: string; glowing: boolean; onClick: () => void; className?: string }) {
+/**
+ * Header status pill. Glows and pings until the current status has been opened.
+ * `compact` tightens the type and padding so the full label fits beside a phone header's logo.
+ */
+export function StatusPill({ scenario, label, glowing, onClick, compact = false, className }: { scenario: Scenario; label: string; glowing: boolean; onClick: () => void; compact?: boolean; className?: string }) {
   const tone = toneOf(scenario);
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={`Open status: ${label}`}
-      className={cn("relative isolate flex h-9 max-w-full min-w-0 cursor-pointer items-center gap-2 rounded-full border border-transparent pr-2.5 pl-3 text-[13px] font-semibold whitespace-nowrap", className)}
+      className={cn(
+        "relative isolate flex h-9 max-w-full min-w-0 cursor-pointer items-center rounded-full border border-transparent font-semibold whitespace-nowrap",
+        compact ? "gap-1.5 pr-2 pl-2.5 text-xs" : "gap-2 pr-2.5 pl-3 text-[13px]",
+        className,
+      )}
       style={{ color: tone.ink }}
     >
       <GlowLayers tone={tone} glowing={glowing} pulse />
@@ -161,7 +168,7 @@ export function StatusPill({ scenario, label, glowing, onClick, className }: { s
         <span className="absolute inset-0 rounded-full" style={{ background: tone.c }} />
       </span>
       <span className="min-w-0 truncate">{label}</span>
-      <ChevronDownIcon size={14} aria-hidden className="shrink-0" />
+      <ChevronDownIcon size={compact ? 12 : 14} aria-hidden className="shrink-0" />
     </button>
   );
 }

@@ -15,10 +15,20 @@
 // The score itself is computed by src/lib/concierge/risk.ts, imported here for the report and backtest.
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { argv, platform } from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { assessConfidence, assessRisk, NORM_KEYS } from "../../src/lib/concierge/risk.ts";
 import { CONFIG, DEMO_PREMISES } from "./config.mjs";
 import { readDbf, readLayer } from "./lib/shapefile.mjs";
+
+// True when run as `node build-risk-features.mjs`, false when imported (e.g. by export-premises.mjs).
+// Imported, the script recomputes features but does not rewrite the committed JSON.
+// import.meta.main exists on Node 24; older Node falls back to a path comparison that ignores case on
+// Windows (drive letters and folder names can differ in case between argv and import.meta.url).
+const samePath = (a, b) => (platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b);
+const RUN_DIRECTLY = import.meta.main ?? (argv[1] !== undefined && samePath(fileURLToPath(import.meta.url), resolve(argv[1])));
 
 const D = CONFIG.dataDir;
 const FILES = {
@@ -382,5 +392,14 @@ const dataset = {
   premises: out,
   report: { levelMix, backtest },
 };
-writeFileSync(CONFIG.out, JSON.stringify(dataset, null, 2) + "\n");
-log(`wrote ${CONFIG.out}`);
+if (RUN_DIRECTLY) {
+  writeFileSync(CONFIG.out, JSON.stringify(dataset, null, 2) + "\n");
+  log(`wrote ${CONFIG.out}`);
+}
+
+// The full per-premise feature set, for tools that need every premise rather than the demo IDs.
+// scripts/data/export-premises.mjs imports this so the DynamoDB records are derived exactly like the
+// demo premises above — one source of truth for the feature math. `features` is keyed by the real
+// premise number (premise_nu); callers must anonymize it before anything leaves the machine.
+export { features, N as norms };
+export const stormEvents = dataset.storms;
