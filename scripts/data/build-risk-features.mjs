@@ -288,7 +288,7 @@ const N = norms(features);
 
 const levelMix = {};
 for (const wind of CONFIG.reportWinds) {
-  const mix = { minimal: 0, low: 0, medium: 0, high: 0 };
+  const mix = { minimal: 0, low: 0, medium: 0, high: 0, critical: 0 };
   const conf = { 1: 0, 2: 0, 3: 0 };
   for (const f of features.values()) {
     const ctx = { storm: true, wind, features: f, norms: N };

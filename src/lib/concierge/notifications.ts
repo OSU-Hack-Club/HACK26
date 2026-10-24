@@ -95,7 +95,7 @@ export function inbox(m: Model, s: ConciergeInput): Inbox {
   const feed = [...storm.filter((n): n is Notice => n !== null), ...always].sort((a, b) => b.h - a.h);
 
   const B = RISK[m.level];
-  const riskTone: ToneKey = m.level === "high" ? "high" : m.level === "medium" ? "mid" : "low";
+  const riskTone: ToneKey = m.level === "high" || m.level === "critical" ? "high" : m.level === "medium" ? "mid" : "low";
   const status = { label: "View Status", kind: "status" } as const;
   const activeBy: Record<typeof sc, Omit<Notice, "day" | "defaultRead">[]> = {
     normal: [],

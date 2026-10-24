@@ -216,12 +216,12 @@ export function SegmentBar({ segs }: { segs: Segment[] }) {
   );
 }
 
-/** Four-step outage-chance scale (Minimal → High), filled up to the current level. */
+/** Five-step outage-chance scale (Minimal → Critical), filled up to the current level. */
 export function RiskScale({ level, compact = false }: { level: RiskLevel; compact?: boolean }) {
   const B = RISK[level];
   const at = RISK_ORDER.indexOf(level);
   return (
-    <div className={cn("grid grid-cols-4", compact ? "gap-[3px]" : "gap-1")} role="img" aria-label={`Outage chance: ${B.label}`}>
+    <div className={cn("grid grid-cols-5", compact ? "gap-[3px]" : "gap-1")} role="img" aria-label={`Outage chance: ${B.label}`}>
       {RISK_ORDER.map((k, i) => (
         <span key={k} className={cn("rounded-full", compact ? "h-1.5" : "h-2")} style={{ background: i <= at ? B.c : "var(--muted)" }} />
       ))}

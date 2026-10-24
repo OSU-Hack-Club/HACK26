@@ -176,7 +176,8 @@
           "minimal": 52.7,
           "low": 47.3,
           "medium": 0,
-          "high": 0
+          "high": 0,
+          "critical": 0
         },
         "confidence": {
           "1": 0,
@@ -194,7 +195,8 @@
           "minimal": 1.1,
           "low": 42.4,
           "medium": 42.8,
-          "high": 13.7
+          "high": 13.7,
+          "critical": 0
         },
         "confidence": {
           "1": 0,
@@ -212,7 +214,8 @@
           "minimal": 0,
           "low": 4.3,
           "medium": 20.7,
-          "high": 75
+          "high": 61,
+          "critical": 14
         },
         "confidence": {
           "1": 100,

@@ -7,7 +7,7 @@
 
 import type { FeatureNorms, NormKey, PremiseFeatures } from "@/lib/concierge/features";
 
-export type RiskLevel = "minimal" | "low" | "medium" | "high";
+export type RiskLevel = "minimal" | "low" | "medium" | "high" | "critical";
 
 export interface RiskContext {
   /** Is a storm in the forecast? With none, the level is always "minimal". */
@@ -72,9 +72,10 @@ export const INDICATORS: RiskIndicator[] = [
 
 /**
  * Lower bound of each level's score range, highest first. Set against the build report's score spread:
- * at 58 mph gusts the median premise scores ~0.33 and the top 10% above ~0.41.
+ * at 58 mph gusts the median premise scores ~0.33 and the top 10% above ~0.41; at 75 mph the top 10% pass ~0.57.
  */
 export const THRESHOLDS: [RiskLevel, number][] = [
+  ["critical", 0.55],
   ["high", 0.4],
   ["medium", 0.32],
   ["low", 0.2],
@@ -131,7 +132,7 @@ export function assessConfidence(c: RiskContext, r: RiskAssessment): Confidence 
   return { level, reasons, missing };
 }
 
-export const RISK_ORDER: RiskLevel[] = ["minimal", "low", "medium", "high"];
+export const RISK_ORDER: RiskLevel[] = ["minimal", "low", "medium", "high", "critical"];
 
 export interface RiskLevelInfo {
   /** "High" */
@@ -146,14 +147,15 @@ export interface RiskLevelInfo {
   fg: string;
 }
 
-const tone = (k: "low" | "mid" | "high") => ({ c: `var(--${k})`, bg: `var(--${k}-bg)`, ink: `var(--${k}-ink)`, fg: `var(--${k}-fg)` });
+const tone = (k: "low" | "mid" | "high" | "crit") => ({ c: `var(--${k})`, bg: `var(--${k}-bg)`, ink: `var(--${k}-ink)`, fg: `var(--${k}-fg)` });
 
 export const RISK: Record<RiskLevel, RiskLevelInfo> = {
   minimal: { short: "Minimal", label: "Minimal Chance", detail: "Homes like yours almost never lose power in conditions like these.", ...tone("low") },
   low: { short: "Low", label: "Low Chance", detail: "Most homes like yours keep their power through a storm like this.", ...tone("low") },
   medium: { short: "Medium", label: "Medium Chance", detail: "Some homes like yours lose power in a storm like this. It’s worth getting ready.", ...tone("mid") },
   high: { short: "High", label: "High Chance", detail: "Many homes like yours lose power in a storm like this. Plan for an outage.", ...tone("high") },
+  critical: { short: "Critical", label: "Critical Chance", detail: "Most homes like yours lose power in a storm like this, and outages can run long. Get ready now.", ...tone("crit") },
 };
 
 /** Levels that warrant a pre-storm alert. */
-export const alertWorthy = (level: RiskLevel) => level === "medium" || level === "high";
+export const alertWorthy = (level: RiskLevel) => level === "medium" || level === "high" || level === "critical";

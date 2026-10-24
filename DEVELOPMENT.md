@@ -106,21 +106,21 @@ score = `BASELINE` (0.05) + Σ weight × value. Storm-scaled indicators use valu
 | `history` | 0.14 | `circuitStormHits / stormsTotal` | no | 0.4 |
 | `path` | 0.10 | `pathStormHits / stormsTotal` | no | 0.2 |
 
-**Levels** (`THRESHOLDS`): high ≥ 0.40, medium ≥ 0.32, low ≥ 0.20, else minimal. With no storm (`scenario = normal`) the level is always minimal.
+**Levels** (`THRESHOLDS`, five steps in `RISK_ORDER`): critical ≥ 0.55, high ≥ 0.40, medium ≥ 0.32, low ≥ 0.20, else minimal. With no storm (`scenario = normal`) the level is always minimal. Medium and above warrant a pre-storm alert (`alertWorthy`). The UI renders one bar per level (`RiskScale`) and one battery cell per level (`ChanceBattery`: minimal 5 lit → critical 1). Critical uses the `--crit*` color tokens in `globals.css`. Adding or removing a level means touching `RiskLevel`, `RISK_ORDER`, `THRESHOLDS`, `RISK`, `alertWorthy`, `CHANCE` in power-battery.tsx, the `mix` object in the build script, and the level list in the `/api/chat` system prompt.
 
 **Confidence** (`assessConfidence`): wind > 70 mph → 1, because storms that strong are rare in the records (assumption: ARCOS has no wind data). Any of the following → 2: assumed data contributing ≥ 0.03 points, overhead service in ≥ 45 mph gusts, or fewer than 3 storms on record. Otherwise → 3. Each rule that fires is listed in `reasons`. Missing inputs are listed in `missing`.
 
 **Current report** (2026-10-24 data):
 
-| | minimal | low | medium | high |
-| --- | --- | --- | --- | --- |
-| 40 mph | 53% | 47% | 0% | 0% |
-| 58 mph | 1% | 42% | 43% | 14% |
-| 75 mph | 0% | 4% | 21% | 75% |
+| | minimal | low | medium | high | critical |
+| --- | --- | --- | --- | --- | --- |
+| 40 mph | 53% | 47% | 0% | 0% | 0% |
+| 58 mph | 1% | 42% | 43% | 14% | 0% |
+| 75 mph | 0% | 4% | 21% | 61% | 14% |
 
 Backtest AUC: 0.626 holding out 2025-02-12 (30% of premises affected) and 0.600 holding out 2024-09-26 (7%). An overhead-only baseline scores 0.46–0.47. The weights were hand-tuned while watching these numbers, so the backtest is a sanity check, not an independent validation.
 
-Demo premises: P-20417 Maple Grove (CIR22, medium), P-33810 Riverside (CIR85, minimal), P-51122 Ridge Road (CIR31, high), all at the 58 mph default.
+Demo premises: P-20417 Maple Grove (CIR22, medium), P-33810 Riverside (CIR85, minimal), P-51122 Ridge Road (CIR31, high at score 0.53; it tips into critical at about 62 mph), all at the 58 mph default.
 
 ---
 

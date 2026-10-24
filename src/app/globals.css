@@ -61,6 +61,9 @@
   --color-high: var(--high);
   --color-high-bg: var(--high-bg);
   --color-high-ink: var(--high-ink);
+  --color-crit: var(--crit);
+  --color-crit-bg: var(--crit-bg);
+  --color-crit-ink: var(--crit-ink);
 }
 
 :root {
@@ -114,6 +117,10 @@
   --high-bg: oklch(0.965 0.025 27);
   --high-ink: oklch(0.5 0.2 27);
   --high-fg: #ffffff;
+  --crit: oklch(0.42 0.17 10);
+  --crit-bg: oklch(0.95 0.035 10);
+  --crit-ink: oklch(0.38 0.15 10);
+  --crit-fg: #ffffff;
   --past: oklch(0.6 0.2 293);
   --ring-card: color-mix(in oklch, var(--foreground) 10%, transparent);
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
@@ -170,6 +177,9 @@
   --high: oklch(0.704 0.191 22.216);
   --high-bg: oklch(0.27 0.07 25);
   --high-ink: oklch(0.85 0.1 25);
+  --crit: oklch(0.6 0.22 10);
+  --crit-bg: oklch(0.24 0.08 10);
+  --crit-ink: oklch(0.82 0.12 10);
   --past: oklch(0.7 0.16 293);
   --glass-top: rgb(255 255 255 / 0.2);
   --glass-bottom: rgb(255 255 255 / 0.06);

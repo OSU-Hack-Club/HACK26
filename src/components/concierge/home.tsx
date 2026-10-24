@@ -2,9 +2,7 @@
 
 import * as React from "react";
 import {
-  ArrowDownIcon,
   ArrowRightIcon,
-  ArrowUpIcon,
   ChevronDownIcon,
   CircleHelpIcon,
   ClockIcon,
@@ -339,16 +337,10 @@ export function OutageRisk() {
             {list.map((f) => (
               <div key={f.t} className="flex gap-3 border-t px-4 py-3">
                 <span
-                  className="relative flex size-[30px] shrink-0 items-center justify-center rounded-lg"
+                  className="flex size-[30px] shrink-0 items-center justify-center rounded-lg"
                   style={{ background: f.up ? "var(--high-bg)" : "var(--low-bg)", color: f.up ? "var(--high-ink)" : "var(--low-ink)" }}
                 >
                   <Icon name={f.icon} size={16} />
-                  <span
-                    className="absolute -right-1 -bottom-1 flex size-3.5 items-center justify-center rounded-full text-white ring-2 ring-card"
-                    style={{ background: f.up ? "var(--high)" : "var(--low)" }}
-                  >
-                    {f.up ? <ArrowUpIcon size={9} strokeWidth={3} aria-hidden /> : <ArrowDownIcon size={9} strokeWidth={3} aria-hidden />}
-                  </span>
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="leading-snug font-medium text-pretty">

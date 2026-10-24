@@ -26,8 +26,9 @@ const LIT = "0;4;9;14;19;24;24";
 const CHANCE: Record<RiskLevel, { lit: number; c: string; ink: string; label: string }> = {
   minimal: { lit: 5, c: "var(--low)", ink: "var(--low-ink)", label: "Minimal" },
   low: { lit: 4, c: "var(--low)", ink: "var(--low-ink)", label: "Low" },
-  medium: { lit: 2, c: "var(--mid)", ink: "var(--mid-ink)", label: "Medium" },
-  high: { lit: 1, c: "var(--high)", ink: "var(--high-ink)", label: "High" },
+  medium: { lit: 3, c: "var(--mid)", ink: "var(--mid-ink)", label: "Medium" },
+  high: { lit: 2, c: "var(--high)", ink: "var(--high-ink)", label: "High" },
+  critical: { lit: 1, c: "var(--crit)", ink: "var(--crit-ink)", label: "Critical" },
 };
 
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
