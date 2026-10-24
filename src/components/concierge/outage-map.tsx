@@ -50,13 +50,17 @@ interface OutageMapProps {
   scenario: Scenario;
   theme: Theme;
   view: MapView;
-  interactive?: boolean;
+  /**
+   * true: drag to pan, pinch/scroll to zoom, plus zoom buttons.
+   * "gestures": the same without zoom buttons, for small maps with their own overlays.
+   */
+  interactive?: boolean | "gestures";
   /** Camera padding for view="event" (keeps the zone clear of overlay cards). */
   eventPadding?: PaddingOptions;
   className?: string;
 }
 
-const DEFAULT_EVENT_PADDING: PaddingOptions = { top: 60, bottom: 230, left: 24, right: 24 };
+const DEFAULT_EVENT_PADDING: PaddingOptions = { top: 60, bottom: 250, left: 24, right: 24 };
 const LOCATION_ZOOM = 12.7;
 const FIT_ZOOM_BIAS = 0.6;
 
@@ -134,17 +138,15 @@ export function OutageMap({ scenario, theme, view, interactive = false, eventPad
           style: STYLE[theme],
           center: data.home,
           zoom: LOCATION_ZOOM,
-          interactive,
+          interactive: interactive !== false,
           attributionControl: { compact: true },
           dragRotate: false,
           pitchWithRotate: false,
           fadeDuration: 0,
         });
         map.on("error", (e) => console.warn("outage-map:", e.error?.message));
-        if (interactive) {
-          map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
-          map.touchZoomRotate.disableRotation();
-        }
+        if (interactive) map.touchZoomRotate.disableRotation();
+        if (interactive === true) map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
         map.on("load", () => setReady((n) => n + 1));
         mapRef.current = map;
       })

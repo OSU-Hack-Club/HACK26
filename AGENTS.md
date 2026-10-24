@@ -26,3 +26,12 @@ Two icon libraries are installed. Use them before hand-rolling SVGs.
   </svg>
   ```
   Import individual icons by name so unused ones are tree-shaken. Browse names at https://simpleicons.org.
+
+## Outage maps
+
+These rules apply to every map in every status (All Clear, Storm Watch, Outage, Restoring, Restored), on mobile and desktop, and in every screen and sheet.
+
+- **No status pills on maps** (e.g. "Line Running Normally", "Outage Area", "Partly Restored", "Restored"). The header status pill and the event card already show the status. Weather lives in the Status Overview cards, not on the map.
+- **No expand/collapse (maximize/minimize) button on maps.** Event details open from the event card or the header status pill, never by tapping the map.
+- **Mobile map is touch-movable.** The mobile hero uses `interactive="gestures"`: one-finger drag pans, pinch and double-tap zoom, no zoom buttons.
+- **Keep the event card clear of the map attribution** (© OpenStreetMap / CARTO, bottom-right). The card sits above it, not on top of it.

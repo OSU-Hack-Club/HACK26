@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { statusLabel } from "@/lib/concierge/model";
 import { DEBUG_MENU, DebugMenu } from "@/components/concierge/debug-menu";
 import { ChatComposer, ChatHeader, ChatThread, QuickAskChips } from "@/components/concierge/chat";
-import { DashboardSections, EventCard, EventMapHero, FallbackCard, MapOverlayChips, useMapTheme } from "@/components/concierge/home";
+import { DashboardSections, EventCard, EventMapHero, FallbackCard, useMapTheme } from "@/components/concierge/home";
 import { OutageMap } from "@/components/concierge/outage-map";
 import { StatusPill } from "@/components/concierge/primitives";
 import { LocationScreen, NotificationsScreen, SettingsScreen } from "@/components/concierge/settings";
@@ -256,7 +256,6 @@ function DesktopShell() {
             eventPadding={DESKTOP_EVENT_PADDING}
             className="absolute inset-0"
           />
-          <MapOverlayChips showExpand={false} />
           {!state.unknownId && <EventCard className="absolute bottom-6 left-4 w-[380px]" />}
         </section>
 

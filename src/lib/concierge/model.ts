@@ -55,12 +55,12 @@ export const TONE: Record<ToneKey, Tone> = {
   brand: { c: "var(--brand)", bg: "var(--brand-soft)", ink: "var(--brand-ink)", edge: "color-mix(in oklch,var(--brand) 35%,transparent)" },
 };
 
-export const SC: Record<Scenario, { label: string; tone: ToneKey; title: string; badge?: string; tag: string }> = {
-  normal: { label: "All Clear", tone: "low", title: "No Outages on Your Line", badge: "Line Running Normally", tag: "No Outages" },
+export const SC: Record<Scenario, { label: string; tone: ToneKey; title: string; tag: string }> = {
+  normal: { label: "All Clear", tone: "low", title: "No Outages on Your Line", tag: "No Outages" },
   watch: { label: "Storm Watch", tone: "mid", title: "Storm Watch: Strong Winds Monday Night", tag: "Storm Watch" },
-  outage: { label: "Outage Detected", tone: "high", title: "Power Outage Detected", badge: "Outage Area", tag: "Outage" },
-  restoring: { label: "Restoring Power", tone: "brand", title: "Crews Restoring Power", badge: "Partly Restored", tag: "Restoring" },
-  restored: { label: "Power Restored", tone: "low", title: "Power Restored", badge: "Restored", tag: "Restored" },
+  outage: { label: "Outage Detected", tone: "high", title: "Power Outage Detected", tag: "Outage" },
+  restoring: { label: "Restoring Power", tone: "brand", title: "Crews Restoring Power", tag: "Restoring" },
+  restored: { label: "Power Restored", tone: "low", title: "Power Restored", tag: "Restored" },
 };
 
 const DAY = ["Mon", "Tue", "Wed", "Thu", "Fri"];
@@ -404,7 +404,7 @@ export const LEGENDS: Record<Scenario, LegendItem[]> = {
   normal: [L("var(--brand)", "Your Area (Approx.)"), L("var(--chart-2)", "Your Power Line", true)],
   watch: [L("var(--low)", "Low Risk", true), L("var(--mid)", "Medium Risk", true), L("var(--high)", "High Risk", true), L("var(--past)", "Past Storm Damage"), L("var(--brand)", "Your Area")],
   outage: [L("var(--high)", "Outage Area", true), L("var(--high)", "Reported Damage"), L("var(--brand)", "Crew"), L("var(--brand)", "Your Area")],
-  restoring: [L("var(--high)", "Still Out", true), L("var(--low)", "Restored", true), L("var(--brand)", "Crew"), L("var(--brand)", "Your Area")],
+  restoring: [L("var(--high)", "Outage Area", true), L("var(--low)", "Restored"), L("var(--high)", "Reported Damage"), L("var(--brand)", "Crew"), L("var(--brand)", "Your Area")],
   restored: [L("var(--low)", "Restored", true), L("var(--low)", "Repaired Damage"), L("var(--brand)", "Your Area")],
 };
 

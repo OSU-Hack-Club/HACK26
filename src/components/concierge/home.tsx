@@ -9,8 +9,8 @@ import {
   GaugeIcon,
   HouseIcon,
   InfoIcon,
+  LightbulbIcon,
   MapPinIcon,
-  Maximize2Icon,
   TargetIcon,
   TriangleAlertIcon,
   TruckIcon,
@@ -43,7 +43,6 @@ import {
 import { OutageMap } from "@/components/concierge/outage-map";
 import {
   ConfirmedBadge,
-  Dot,
   Icon,
   Legend,
   ModelEstimateBadge,
@@ -51,50 +50,12 @@ import {
   RiskScale,
   SectionHeader,
   SegmentBar,
-  toneOf,
 } from "@/components/concierge/primitives";
 import { useConcierge } from "@/components/concierge/store";
 
 export function useMapTheme() {
   const { resolvedTheme } = useTheme();
   return resolvedTheme === "dark" ? "dark" : "light";
-}
-
-const overlayChip = "inline-flex h-7 items-center rounded-full bg-background px-2.5 text-xs text-foreground shadow-[0_0_0_1px_var(--ring-card),var(--shadow-sm)]";
-
-/** Status + weather chips and the expand button that sit on top of the map. */
-export function MapOverlayChips({ showExpand = true }: { showExpand?: boolean }) {
-  const { state, openStatus } = useConcierge();
-  const sc = state.scenario;
-  const wx = weather(sc, state.wind);
-  return (
-    <div className="pointer-events-none absolute inset-x-3 top-3 flex items-center gap-2">
-      {SC[sc].badge && (
-        <span className={cn(overlayChip, "gap-1.5 font-semibold")}>
-          <Dot color={toneOf(sc).c} />
-          {SC[sc].badge}
-        </span>
-      )}
-      <span className={cn(overlayChip, "gap-[5px] font-medium whitespace-nowrap")}>
-        <Icon name={wx.icon} size={13} />
-        {wx.label}
-      </span>
-      <div className="flex-1" />
-      {showExpand && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            openStatus();
-          }}
-          aria-label="Expand map"
-          className="pointer-events-auto flex size-[34px] cursor-pointer items-center justify-center rounded-[10px] bg-background text-foreground shadow-[0_0_0_1px_var(--ring-card),var(--shadow-sm)]"
-        >
-          <Maximize2Icon size={15} />
-        </button>
-      )}
-    </div>
-  );
 }
 
 /** Floating event summary over the map. The whole card opens event details. */
@@ -124,38 +85,14 @@ export function EventCard({ className }: { className?: string }) {
   );
 }
 
-/** Keeps a scroll gesture over the map from being mistaken for a tap. */
-function useMapTap<T extends HTMLElement>(onOpen: () => void) {
-  const lastScroll = React.useRef(-Infinity);
-  const pointerDown = React.useRef<{ x: number; y: number } | null>(null);
-  React.useEffect(() => {
-    const onScroll = () => {
-      lastScroll.current = performance.now();
-    };
-    // Scroll doesn't bubble; capture catches the inner scroll area too.
-    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
-    return () => document.removeEventListener("scroll", onScroll, { capture: true });
-  }, []);
-  return {
-    onPointerDown: (e: React.PointerEvent<T>) => {
-      pointerDown.current = { x: e.clientX, y: e.clientY };
-    },
-    onClick: (e: React.MouseEvent<T>) => {
-      const start = pointerDown.current;
-      pointerDown.current = null;
-      if (performance.now() - lastScroll.current < 350) return;
-      if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) return;
-      onOpen();
-    },
-  };
-}
-
-/** Mobile hero: full-bleed, non-interactive event map with overlays. */
+/**
+ * Mobile hero: full-bleed event map with overlays. Drag to pan, pinch to zoom; the page
+ * scrolls from the card. Details open from the card or the header status pill.
+ */
 export function EventMapHero() {
-  const { state, openStatus } = useConcierge();
+  const { state } = useConcierge();
   const theme = useMapTheme();
   const heroRef = React.useRef<HTMLDivElement>(null);
-  const mapTap = useMapTap<HTMLDivElement>(openStatus);
   React.useEffect(() => {
     const hero = heroRef.current;
     const viewport = hero?.closest<HTMLElement>("[data-slot=scroll-area-viewport]");
@@ -170,11 +107,9 @@ export function EventMapHero() {
   }, []);
   return (
     <div ref={heroRef} className="relative -mx-3 -mt-3.5 h-[500px] bg-muted">
-      <div className="absolute inset-0 cursor-pointer" {...mapTap}>
-        <OutageMap scenario={state.scenario} theme={theme} view="event" className="size-full" />
-      </div>
-      <MapOverlayChips />
-      <EventCard className="absolute inset-x-3 bottom-[30px]" />
+      <OutageMap scenario={state.scenario} theme={theme} view="event" interactive="gestures" className="absolute inset-0" />
+      {/* Sits above the map attribution (bottom-right, ~34px tall) so the two never overlap. */}
+      <EventCard className="absolute inset-x-3 bottom-11" />
     </div>
   );
 }
@@ -219,8 +154,18 @@ export function StatusOverview() {
   const { state, m, set, openStatus } = useConcierge();
   const sc = state.scenario;
   const B = RISK[m.level];
+  const wx = weather(sc, state.wind);
   const t = timeText(m);
   const range = `${fmt(m.start + m.lo)}–${fmt(m.start + m.hi).slice(4)}`;
+  const rangeStart = fmt(m.start + m.lo);
+  const rangeEnd = fmt(m.start + m.hi);
+  const [rangeDay, rangeStartTime] = rangeStart.split(" ");
+  const [, rangeEndTime] = rangeEnd.split(" ");
+  const rangeStartAmPm = rangeStartTime.slice(-2);
+  const rangeEndAmPm = rangeEndTime.slice(-2);
+  const compactRange = rangeStart.slice(0, 3) === rangeEnd.slice(0, 3)
+    ? `${rangeDay}, ${rangeStartTime.slice(0, -3)}${rangeStartAmPm === rangeEndAmPm ? "" : ` ${rangeStartAmPm}`}–${rangeEndTime}`
+    : `${rangeStart}–${rangeEnd}`;
   const openFactors = () => set({ factorsOpen: true });
 
   const sets: Record<typeof sc, Kpi[]> = {
@@ -232,11 +177,11 @@ export function StatusOverview() {
       { icon: GaugeIcon, label: "Outage Chance", value: B.short, sub: B.label, color: B.ink, onClick: openFactors },
       { icon: ClockIcon, label: "If It Goes Out", value: `Until ${fmt(m.start + m.hi)}`, sub: `About ${t.hours}`, color: "var(--foreground)", onClick: openStatus },
       { icon: TruckIcon, label: "Crews Ready", value: "6 Crews", sub: "Staged nearby Monday", color: "var(--foreground)", onClick: openStatus },
-      { icon: WindIcon, label: "Storm Arrives", value: "Mon 6 PM", sub: `Gusts up to ${state.wind} mph · until Tue 6 AM`, color: "var(--mid-ink)", onClick: openStatus },
+      { icon: WindIcon, label: "Storm Arrives", value: "Mon 6 PM", sub: "Through Tue 6 AM", color: "var(--mid-ink)", onClick: openStatus },
     ],
     outage: [
       { icon: ZapOffIcon, label: "Status", value: "Power Out", sub: "Since Mon 9:40 PM", color: "var(--high-ink)", onClick: openStatus },
-      { icon: ClockIcon, label: "Likely Back", value: tc(when(m.start + m.mid)), sub: range, color: "var(--foreground)", onClick: openStatus },
+      { icon: ClockIcon, label: "Likely Back", value: compactRange, sub: m.conf === 3 ? "Quite sure" : m.conf === 2 ? "Fairly sure" : "Less sure", color: "var(--foreground)", onClick: openStatus },
       { icon: HouseIcon, label: "Homes Out Nearby", value: "1,240", sub: "On your line", color: "var(--foreground)", onClick: openStatus },
       { icon: TruckIcon, label: "Crews", value: "2 Assigned", sub: "Heading to the damage", color: "var(--foreground)", onClick: openStatus },
     ],
@@ -273,6 +218,10 @@ export function StatusOverview() {
             <span className="text-xs text-muted-foreground">{k.sub}</span>
           </button>
         ))}
+      </div>
+      <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+        <Icon name={wx.icon} size={14} aria-hidden />
+        <span><span className="font-medium text-foreground">Conditions</span> · {wx.label}</span>
       </div>
     </>
   );
@@ -357,10 +306,6 @@ export function OutageRisk() {
             <span className="flex-1 text-[13px] font-medium text-muted-foreground">
               {sc === "normal" ? "Your Outage Chance This Week" : "Will I Lose Power Monday Night?"}
             </span>
-            <span className="inline-flex h-[22px] items-center gap-[5px] rounded-full px-2 text-xs font-medium" style={{ background: B.bg, color: B.ink }}>
-              <Dot color={B.c} />
-              {sc === "normal" ? "All Clear" : B.label}
-            </span>
           </div>
           <div className="text-2xl leading-[1.15] font-semibold tracking-[-0.025em] text-pretty">
             {sc === "normal" ? "Very Unlikely: No Storms in the Forecast" : B.label}
@@ -373,7 +318,7 @@ export function OutageRisk() {
           </p>
         </div>
         <Collapsible open={state.factorsOpen} onOpenChange={(open) => set({ factorsOpen: open })}>
-          <AccordionRow>
+          <AccordionRow icon={sc !== "normal" ? <LightbulbIcon size={15} aria-hidden /> : undefined}>
             {sc === "normal" ? "Your Line at a Glance" : "Why We Think So"}
           </AccordionRow>
           <CollapsibleContent>
