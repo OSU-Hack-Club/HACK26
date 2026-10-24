@@ -43,11 +43,11 @@ export interface Premise extends PremiseRecord {
 
 const NORMS = featureSource.dataset.norms;
 
-const toPremise = (r: PremiseRecord): Premise => ({
+const toPremise = (r: PremiseRecord, norms: typeof NORMS = NORMS): Premise => ({
   ...r,
   circuit: r.features.circuit,
   upstream: r.features.reclosersUpstream > 0 || r.features.hasTie === true,
-  remote: r.features.premiseDensity <= NORMS.premiseDensity.p10,
+  remote: r.features.premiseDensity <= norms.premiseDensity.p10,
 });
 
 /** Demo premises from src/data/risk-features.json (built by `npm run data:risk`). */
@@ -140,6 +140,18 @@ export interface ModelInput extends WhatIf {
   wind: number;
   /** Debug only: force the outage-chance level instead of the calculated one. */
   riskOverride?: RiskLevel | null;
+  /**
+   * A premise fetched at runtime (e.g. from /api/premise, backed by DynamoDB), used instead of the
+   * static demo premises. Carries its own norms so scaling matches the snapshot it came from.
+   * When unset, the model uses the built-in demo premises. See DEVELOPMENT.md › Making the data dynamic.
+   */
+  premiseOverride?: RuntimePremise | null;
+}
+
+/** A premise plus the snapshot norms it was scored against, as returned by the DynamoDB lookup. */
+export interface RuntimePremise {
+  record: PremiseRecord;
+  norms: typeof NORMS;
 }
 
 export interface Estimate { wait: number; road: number; repair: number; mid: number }
@@ -163,10 +175,11 @@ export interface Model {
 }
 
 export function model(s: ModelInput): Model {
-  const P = PREMISES[s.premise] ?? PREMISES[DEFAULT_PREMISE];
+  const P = s.premiseOverride ? toPremise(s.premiseOverride.record, s.premiseOverride.norms) : (PREMISES[s.premise] ?? PREMISES[DEFAULT_PREMISE]);
+  const norms = s.premiseOverride?.norms ?? NORMS;
   const wind = s.scenario === "normal" ? 18 : s.wind;
   const w = windStrength(wind);
-  const ctx = { storm: s.scenario !== "normal", wind, features: P.features, norms: NORMS };
+  const ctx = { storm: s.scenario !== "normal", wind, features: P.features, norms };
   const risk = assessRisk(ctx);
   const confidence = assessConfidence(ctx, risk);
   const conf = confidence.level;
@@ -432,8 +445,8 @@ export interface ConciergeInput extends ModelInput {
 let msgSeq = 0;
 export const nextId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(msgSeq++).toString(36)}`;
 
-export function greeting(premise: string): BotMessage {
-  const P = PREMISES[premise] ?? PREMISES[DEFAULT_PREMISE];
+export function greeting(premise: string, override?: RuntimePremise | null): BotMessage {
+  const P = override ? toPremise(override.record, override.norms) : (PREMISES[premise] ?? PREMISES[DEFAULT_PREMISE]);
   return { id: "g", role: "bot", accent: "var(--brand)", headline: "Hi. Ask me anything about your power.", body: `I’m using the live estimate for ${P.area}. I’ll explain things in plain words and tell you when I’m not sure.`, points: [] };
 }
 
