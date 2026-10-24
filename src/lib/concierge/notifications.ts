@@ -11,6 +11,7 @@ import {
   eligibility,
   estimateLine,
   fmt,
+  escalation,
   forcedChannel,
   previewMessages,
   priorityNeed,
@@ -21,13 +22,14 @@ import {
   type Model,
   type ToneKey,
 } from "@/lib/concierge/model";
+import { DEFAULT_ALERT_PREFS } from "@/lib/concierge/services";
 
 export type NoticeKind = "alert" | "update" | "tip" | "account";
 
 export type NoticeAction =
   | { label: string; kind: "status" }
   | { label: string; kind: "ask"; q: string; intent: Intent }
-  | { label: string; kind: "screen"; screen: "notifications" | "location" };
+  | { label: string; kind: "screen"; screen: "notifications" | "location" | "services" };
 
 export interface Notice {
   id: string;
@@ -64,8 +66,12 @@ export function inbox(m: Model, s: ConciergeInput): Inbox {
   const P = PREMISES[s.premise] ?? m.P;
   const el = eligibility(m, s);
   const previews = previewMessages(m, s);
+  const prefs = s.alertPrefs ?? DEFAULT_ALERT_PREFS;
   const chan = s.ch.sms ? "Text" : s.ch.push ? "Push" : s.ch.email ? "Email" : "Text";
+  const callChan = forcedChannel(s, "call") ? `${chan} + Call` : chan;
   const restoredH = m.start + m.mid * 0.95;
+  const esc = escalation(s);
+  const reach = s.needs.hearing ? "Text" : forcedChannel(s, "call") ? "Call" : chan;
 
   /** Storm items: stage = the ORDER index that sends them. Older stages start read. */
   const staged = (stage: number, n: Omit<Notice, "day" | "defaultRead">): Notice | null =>
@@ -79,8 +85,39 @@ export function inbox(m: Model, s: ConciergeInput): Inbox {
       : null,
     staged(1, { id: "crews-staged", kind: "update", icon: "truck", tone: "brand", title: "Crews Staged Nearby", body: `6 crews are standing by near ${P.area} so repairs can start as soon as it’s safe.`, t: "Mon. 2:00 PM", h: 14, channel: "Push" }),
     staged(1, { id: "prep-tip", kind: "tip", icon: "battery-charging", tone: "brand", title: "Get Ready Tonight", body: "Charge phones and battery packs, find flashlights, and keep the fridge closed if the power goes out.", t: "Mon. 4:30 PM", h: 16.5, channel: "Push", action: { label: "What Should I Do?", kind: "ask", q: "What should I do?", intent: "prep" } }),
-    staged(2, { id: "outage-confirmed", kind: "alert", icon: "zap-off", tone: "high", title: previews[1].title, body: previews[1].text, t: "Mon. 9:41 PM", h: 21.68, channel: forcedChannel(s, "call") ? `${chan} + Call` : chan, action: { label: "View Status", kind: "status" } }),
+    s.needs.facility
+      ? staged(1, { id: "facility-prep", kind: "tip", icon: "building-2", tone: "high", title: "Critical Facility: Storm Playbook", body: "Test generators, confirm who decides to close or relocate, and keep your facility contact current with AEP. We’ll escalate to the critical-facility team if power is out more than 4 hours.", t: "Mon. 3:00 PM", h: 15, channel: "Push", action: { label: "Open Playbook", kind: "screen", screen: "services" } })
+      : null,
+    staged(2, { id: "outage-confirmed", kind: "alert", icon: "zap-off", tone: "high", title: previews[1].title, body: previews[1].text, t: "Mon. 9:41 PM", h: 21.68, channel: callChan, action: { label: "View Status", kind: "status" } }),
     staged(2, { id: "downed-wires", kind: "alert", icon: "triangle-alert", tone: "high", title: "Downed Wires Reported Nearby", body: "Stay at least 30 feet from any downed wire, even if it looks dead, and call 911. Run generators outside only.", t: "Mon. 10:05 PM", h: 22.08, channel: "Push" }),
+    prefs.heartbeat
+      ? staged(2, { id: "heartbeat-1", kind: "update", icon: "bell", tone: "brand", title: "Status Check-In", body: `No change to your estimate since the last update. Most likely back ${fmt(m.start + m.mid)}. We’ll message again in 6 hours, or sooner if the estimate moves.`, t: "Tue. 3:40 AM", h: 27.67, channel: chan })
+      : null,
+    // Escalation after the long-outage threshold for this customer's needs.
+    staged(3, {
+      id: "escalation",
+      kind: "alert",
+      icon: s.medical ? "heart-pulse" : s.needs.facility ? "building-2" : s.needs.mobility ? "accessibility" : "sun",
+      tone: "high",
+      title: s.medical
+        ? "Welfare Check Started"
+        : s.needs.facility
+          ? "Critical-Facility Team Notified"
+          : s.needs.mobility
+            ? "Check-In & Center List"
+            : "Warming & Cooling Centers",
+      body: esc.v + (prefs.centerList && !s.needs.facility ? " Open Services for approximate center areas near you." : s.needs.facility ? " Open Services for your facility playbook." : ""),
+      t: fmt(m.start + (s.medical || s.needs.facility ? 4 : s.needs.mobility ? 12 : 24), true),
+      h: m.start + (s.medical || s.needs.facility ? 4 : s.needs.mobility ? 12 : 24),
+      channel: reach,
+      action:
+        prefs.centerList || s.needs.facility
+          ? { label: "Open Services", kind: "screen", screen: "services" }
+          : { label: "View Status", kind: "status" },
+    }),
+    s.needs.facility && prefs.facilityDigest
+      ? staged(3, { id: "facility-digest", kind: "update", icon: "building-2", tone: "brand", title: "Facility Ops Digest", body: `Estimate still ${fmt(m.start + m.lo)}–${fmt(m.start + m.hi)}. Crews are on the damage near your street. Next escalation already queued with AEP’s critical-facility team.`, t: fmt(m.nowH + 0.1, true), h: m.nowH + 0.1, channel: callChan, action: { label: "Facility Playbook", kind: "screen", screen: "services" } })
+      : null,
     staged(3, { id: "estimate-updated", kind: "update", icon: "clock", tone: "brand", title: previews[2].title, body: previews[2].text, t: fmt(m.nowH, true), h: m.nowH, channel: chan, action: { label: "How Long Could It Take?", kind: "ask", q: "How long could it take?", intent: "time" } }),
     staged(3, { id: "upstream-restored", kind: "update", icon: "zap", tone: "low", title: "Power Back for 830 Homes Upstream", body: "Crews restored the main line. About 410 homes, including yours, are still out while they fix the damage near your street.", t: fmt(m.nowH + 0.25, true), h: m.nowH + 0.25, channel: "Push" }),
     staged(4, { id: "power-restored", kind: "update", icon: "circle-check", tone: "low", title: previews[3].title, body: previews[3].text, t: restoredAt(m), h: restoredH, channel: chan }),
@@ -100,18 +137,28 @@ export function inbox(m: Model, s: ConciergeInput): Inbox {
   const B = RISK[m.level];
   const riskTone: ToneKey = m.level === "high" || m.level === "critical" ? "high" : m.level === "medium" ? "mid" : "low";
   const status = { label: "View Status", kind: "status" } as const;
+  const servicesAction = { label: "Open Services", kind: "screen", screen: "services" } as const;
   const activeBy: Record<typeof sc, Omit<Notice, "day" | "defaultRead">[]> = {
     normal: [],
     watch: [
       { id: "now-watch", kind: "alert", icon: "cloud-lightning", tone: "mid", title: "Watch Alert in Effect", body: estimateLine(m, sc), t: "Mon. 6 PM – Tue. 6 AM", h: 18, action: status },
       { id: "now-risk", kind: "alert", icon: "gauge", tone: riskTone, title: `${B.label} of Losing Power`, body: B.detail, t: "Updated just now", h: 17, action: { label: "Will I Lose Power?", kind: "ask", q: "Will I lose power?", intent: "risk" } },
+      ...(s.needs.facility
+        ? [{ id: "now-facility", kind: "tip" as const, icon: "building-2" as const, tone: "high" as const, title: "Critical Facility Watch", body: "Review your storm playbook before the winds arrive. We’ll escalate after 4 hours without power.", t: "Updated just now", h: 16.5, action: servicesAction }]
+        : []),
     ],
     outage: [
       { id: "now-outage", kind: "alert", icon: "zap-off", tone: "high", title: "Power Outage on Your Line", body: estimateLine(m, sc), t: "Since Mon. 9:40 PM", h: 21.67, action: status },
       { id: "now-wires", kind: "alert", icon: "triangle-alert", tone: "high", title: "Downed Wires in Your Area", body: "Stay at least 30 feet away and call 911 if you see one.", t: "Since Mon. 10:05 PM", h: 22.08 },
+      ...(prefs.centerList || s.needs.facility || s.needs.mobility || s.medical
+        ? [{ id: "now-help", kind: "tip" as const, icon: "building-2" as const, tone: "brand" as const, title: "Help & Services Nearby", body: s.needs.facility ? "Facility playbook and approximate emergency areas are in Services." : "Warming centers and emergency areas (approximate) are in Services.", t: "Updated just now", h: 22.2, action: servicesAction }]
+        : []),
     ],
     restoring: [
       { id: "now-restoring", kind: "alert", icon: "truck", tone: "brand", title: SC.restoring.title, body: estimateLine(m, sc), t: `Updated ${fmt(m.nowH, true)}`, h: m.nowH, action: status },
+      ...(s.needs.facility
+        ? [{ id: "now-facility-ops", kind: "update" as const, icon: "building-2" as const, tone: "high" as const, title: "Facility Follow-Up Active", body: "AEP’s critical-facility team has your site. Use the playbook for reopen steps.", t: `Updated ${fmt(m.nowH, true)}`, h: m.nowH + 0.05, action: servicesAction }]
+        : []),
     ],
     restored: [],
   };

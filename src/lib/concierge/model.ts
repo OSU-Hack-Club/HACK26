@@ -30,7 +30,8 @@ export type IconName =
   | "settings" | "circle-check" | "cloud-sun" | "wind" | "tree-pine" | "wrench"
   | "circle-help" | "cloud-lightning" | "sun" | "star"
   | "trees" | "tree-deciduous" | "utility-pole" | "cable" | "git-commit-horizontal" | "git-fork" | "history"
-  | "network" | "mountain" | "building-2" | "route" | "accessibility" | "ear-off" | "eye-off";
+  | "network" | "mountain" | "building-2" | "route" | "accessibility" | "ear-off" | "eye-off"
+  | "phone" | "hospital" | "shield-check";
 
 /** A premise as the app sees it: the data record (features.ts) plus values the restoration estimate derives from it. */
 export interface Premise extends PremiseRecord {
@@ -571,6 +572,12 @@ export type ChatMessage = UserMessage | BotMessage;
 
 export interface ConciergeInput extends ModelInput, Declared {
   ch: Channels;
+  /** Advanced alert preferences; optional so older call sites keep working. */
+  alertPrefs?: {
+    heartbeat: boolean;
+    centerList: boolean;
+    facilityDigest: boolean;
+  };
 }
 
 let msgSeq = 0;
@@ -631,7 +638,12 @@ export function answer(intent: Intent, s: ConciergeInput): BotMessage {
     return { ...base, accent: "var(--foreground)", headline: sc === "normal" ? "Nothing urgent. A few basics help." : "Here’s what helps most.", body: sc === "normal" ? "Keep a flashlight and a charged battery pack handy so you’re ready for the next storm." : `Your outage could last ${t.hours}.`, points: sc === "normal" ? pts.slice(0, 1) : pts };
   }
   if (intent === "alerts") {
-    return { ...base, accent: el.ok ? "var(--low)" : "var(--muted-foreground)", headline: el.ok ? "Yes, you’ll get alerts." : "Only if your power goes out.", body: el.ok ? (needsAlertText(s) ?? "We’ll message you before the storm, when an outage is confirmed, when the estimate changes, and when power is back.") : "Your outage chance is low, so there’s no pre-storm alert. You’ll still hear from us right away if your power goes out.", points: [{ k: "Change this", icon: "settings", kColor: "var(--muted-foreground)", v: "Settings → Notifications." }] };
+    const points: ChatPoint[] = [
+      { k: "Change this", icon: "settings", kColor: "var(--muted-foreground)", v: "Settings → Notifications for channels, needs, and advanced alerts." },
+      { k: "Nearby help", icon: "building-2", kColor: "var(--muted-foreground)", v: "Services shows approximate emergency areas and, for long outages, warming and cooling centers." },
+    ];
+    if (s.needs.facility) points.push({ k: "Critical facility", icon: "building-2", kColor: "var(--high-ink)", v: "We’ll alert you 48 hours ahead and hand your site to AEP’s critical-facility team after 4 hours without power." });
+    return { ...base, accent: el.ok ? "var(--low)" : "var(--muted-foreground)", headline: el.ok ? "Yes, you’ll get alerts." : "Only if your power goes out.", body: el.ok ? (needsAlertText(s) ?? "We’ll message you before the storm, when an outage is confirmed, when the estimate changes, and when power is back.") : "Your outage chance is low, so there’s no pre-storm alert. You’ll still hear from us right away if your power goes out.", points };
   }
   if (intent === "why") {
     const missing = missingText(m);

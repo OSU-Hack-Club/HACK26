@@ -26,8 +26,9 @@ import {
   type Scenario,
 } from "@/lib/concierge/model";
 import type { RiskLevel } from "@/lib/concierge/risk";
+import { DEFAULT_ALERT_PREFS, type AlertPref } from "@/lib/concierge/services";
 
-export type Screen = "home" | "settings" | "notifications" | "location" | "help";
+export type Screen = "home" | "settings" | "notifications" | "location" | "help" | "services";
 
 export interface ConciergeState {
   scenario: Scenario;
@@ -36,6 +37,8 @@ export interface ConciergeState {
   screen: Screen;
   /** Where the Help page's back button returns to (it opens from the estimate card or Settings). */
   helpFrom: Screen;
+  /** Where the Services page's back button returns to. */
+  servicesFrom: Screen;
   statusOpen: boolean;
   chatOpen: boolean;
   /** Notification center sheet. */
@@ -57,6 +60,8 @@ export interface ConciergeState {
   medical: boolean;
   /** Accessibility and critical-facility needs, declared by the customer in Settings. */
   needs: Needs;
+  /** Advanced alert preferences (heartbeat, center list, facility digest). */
+  alertPrefs: AlertPref;
   ch: Channels;
   chat: ChatMessage[];
   typing: boolean;
@@ -95,6 +100,7 @@ const INITIAL: ConciergeState = {
   seen: "normal",
   screen: "home",
   helpFrom: "settings",
+  servicesFrom: "home",
   statusOpen: false,
   chatOpen: false,
   inboxOpen: false,
@@ -104,6 +110,7 @@ const INITIAL: ConciergeState = {
   premiseOverride: null,
   medical: false,
   needs: NO_NEEDS,
+  alertPrefs: DEFAULT_ALERT_PREFS,
   ch: { push: true, sms: true, email: false, call: false },
   chat: [greeting("P-20417")],
   typing: false,

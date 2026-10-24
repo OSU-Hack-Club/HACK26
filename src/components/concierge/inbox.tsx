@@ -106,7 +106,7 @@ function ActionLink({ action, ink }: { action: NoticeAction; ink?: string }) {
   const run = () => {
     if (action.kind === "status") openStatus();
     else if (action.kind === "ask") ask(action.q, action.intent);
-    else set({ screen: action.screen, inboxOpen: false });
+    else set({ screen: action.screen, inboxOpen: false, ...(action.screen === "services" ? { servicesFrom: "home" as const } : {}) });
   };
   return (
     <button

@@ -70,7 +70,8 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
   - **Hard to leave home quickly** (stairs, wheelchair, no car): someone to check in, a ride lined up early, and the manual release for elevators and garage doors.
   - **Deaf or hard of hearing:** texts instead of calls, and phone emergency alerts with vibration and flash.
   - **Blind or low vision:** phone calls for key updates, and essentials kept in one spot that can be found by touch.
-  - **Critical facility** (school, water treatment, care home, shelter): test generators and check fuel, and confirm who decides to close or move people.
+  - **Critical facility** (school, water treatment, care home, shelter): test generators and check fuel, and confirm who decides to close or move people. The **Services** screen adds a phase-aware facility playbook (before / during / after).
+- **Services page:** approximate nearby fire and ambulance areas from the challenge priority-location extract (~1 km grid), plus demo warming/cooling/shelter centers during a storm. Never exact addresses or life-support pins.
 - Only the customer can turn these on. The app never guesses them from account, network or ARCOS data, and never shows them on a map.
 
 ### 4. Alerts and proactive communications
@@ -84,6 +85,7 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
   - long outages: after 4 hours a welfare check (medical) or a hand-off to AEP's critical-facility team (facility); after 12 hours a check-in (mobility); otherwise warming and cooling centers after 24 hours
   - a phone call is added for medical, vision or facility needs. Customers who are deaf or hard of hearing get texts instead, and the text channel stays on
 - **Channels:** push, text, email and phone call, chosen by the customer. Text messages show their length in characters and how many texts they take.
+- **Advanced notifications** (Settings → Notifications): optional 6-hour status heartbeat during an outage, center-list on escalation, and a critical-facility ops digest. The inbox stages welfare-check / facility-team / center-list escalations and deep-links to Services.
 - **Messages:** short, plain-language drafts for pre-storm, outage-confirmed, estimate-updated and restoration-complete. The inbox also carries weather advisories, downed-wire warnings, crew updates and a follow-up survey.
 
 ### 5. Explainability and responsible use

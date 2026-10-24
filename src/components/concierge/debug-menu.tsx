@@ -25,6 +25,7 @@ const SCREENS: { id: Screen; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "settings", label: "Settings" },
   { id: "notifications", label: "Notifications" },
+  { id: "services", label: "Services" },
   { id: "location", label: "Location" },
   { id: "help", label: "Help" },
 ];

@@ -23,14 +23,17 @@ import {
   GaugeIcon,
   HeartPulseIcon,
   HistoryIcon,
+  HospitalIcon,
   HouseIcon,
   ListIcon,
   MoonIcon,
   MountainIcon,
   NetworkIcon,
+  PhoneIcon,
   RefrigeratorIcon,
   RouteIcon,
   SettingsIcon,
+  ShieldCheckIcon,
   SparklesIcon,
   StarIcon,
   SunIcon,
@@ -96,6 +99,9 @@ const ICONS: Record<IconName, LucideIcon> = {
   accessibility: AccessibilityIcon,
   "ear-off": EarOffIcon,
   "eye-off": EyeOffIcon,
+  phone: PhoneIcon,
+  hospital: HospitalIcon,
+  "shield-check": ShieldCheckIcon,
 };
 
 export function Icon({ name, size = 16, className, strokeWidth }: { name: IconName; size?: number; className?: string; strokeWidth?: number }) {

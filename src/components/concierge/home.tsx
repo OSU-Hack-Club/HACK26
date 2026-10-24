@@ -64,6 +64,7 @@ import {
   SectionHeader,
   SegmentBar,
 } from "@/components/concierge/primitives";
+import { ServicesTeaser } from "@/components/concierge/services";
 import { DESKTOP, useConcierge, useMediaQuery } from "@/components/concierge/store";
 
 export function useMapTheme() {
@@ -739,6 +740,7 @@ export function DashboardSections() {
       <OutageRisk />
       <RestorationEstimate />
       <RestorationExplorer />
+      <ServicesTeaser />
       <Footnote />
     </>
   );

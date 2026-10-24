@@ -18,6 +18,7 @@ import { InboxBody, InboxButton, InboxHeader, useInbox } from "@/components/conc
 import { OutageMap } from "@/components/concierge/outage-map";
 import { StatusPill } from "@/components/concierge/primitives";
 import { HelpScreen, LocationScreen, NotificationsScreen, SettingsScreen } from "@/components/concierge/settings";
+import { ServicesScreen } from "@/components/concierge/services";
 import { StatusBody, StatusHeader } from "@/components/concierge/status";
 import { ConciergeProvider, DESKTOP, useConcierge, useMediaQuery } from "@/components/concierge/store";
 
@@ -99,6 +100,8 @@ function ScreenContent({ withMap, hideBack = false }: { withMap: boolean; hideBa
       return <LocationScreen />;
     case "help":
       return <HelpScreen />;
+    case "services":
+      return <ServicesScreen />;
     default:
       if (state.unknownId) return <FallbackCard />;
       return (

@@ -6,6 +6,7 @@ import {
   BellIcon,
   BellOffIcon,
   BellRingIcon,
+  Building2Icon,
   CalculatorIcon,
   CheckIcon,
   ChevronLeftIcon,
@@ -141,6 +142,16 @@ export function SettingsScreen({ hideBack = false }: { hideBack?: boolean }) {
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="font-medium">Location</span>
             <span className="text-xs text-muted-foreground">{state.unknownId ?? `${m.P.area} · ${m.P.id}`}</span>
+          </span>
+          <ChevronRightIcon size={16} aria-hidden />
+        </button>
+        <button type="button" className={rowClass} onClick={() => set({ screen: "services", servicesFrom: "settings" })}>
+          <IconTile icon={Building2Icon} />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="font-medium">Services</span>
+            <span className="text-xs text-muted-foreground">
+              {state.needs.facility ? "Critical facility playbook" : "Nearby help & emergency areas"}
+            </span>
           </span>
           <ChevronRightIcon size={16} aria-hidden />
         </button>
@@ -413,6 +424,68 @@ export function NotificationsScreen() {
           </div>
         ))}
       </Panel>
+
+      <SectionHeader>Advanced Notifications</SectionHeader>
+      <Panel className="overflow-hidden">
+        <label htmlFor={`${chId}-heartbeat`} className="flex cursor-pointer items-center gap-3 p-3.5">
+          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-brand-soft text-brand-ink">
+            <ClockIcon size={17} aria-hidden />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-semibold">Status Heartbeat Every 6 Hours</span>
+            <span className="text-xs text-pretty text-muted-foreground">If nothing changes during an outage, we still check in so you know we’re watching.</span>
+          </span>
+          <TouchSwitch
+            id={`${chId}-heartbeat`}
+            checked={state.alertPrefs.heartbeat}
+            onCheckedChange={(heartbeat) => set((s) => ({ alertPrefs: { ...s.alertPrefs, heartbeat } }))}
+          />
+        </label>
+        <label htmlFor={`${chId}-centers`} className="flex cursor-pointer items-center gap-3 border-t p-3.5">
+          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-brand-soft text-brand-ink">
+            <MapPinIcon size={17} aria-hidden />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-semibold">Send Center List on Escalation</span>
+            <span className="text-xs text-pretty text-muted-foreground">When a long outage escalates, include warming and cooling center areas (approximate only).</span>
+          </span>
+          <TouchSwitch
+            id={`${chId}-centers`}
+            checked={state.alertPrefs.centerList}
+            onCheckedChange={(centerList) => set((s) => ({ alertPrefs: { ...s.alertPrefs, centerList } }))}
+          />
+        </label>
+        <label htmlFor={`${chId}-digest`} className="flex cursor-pointer items-center gap-3 border-t p-3.5">
+          <span className="flex size-[34px] shrink-0 items-center justify-center rounded-[10px] bg-high-bg text-high-ink">
+            <Building2Icon size={17} aria-hidden />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-semibold">Critical Facility Ops Digest</span>
+            <span className="text-xs text-pretty text-muted-foreground">
+              {state.needs.facility
+                ? "Short ops updates for staff while your site is without power."
+                : "Turn on “This Account Is a Critical Facility” above to enable."}
+            </span>
+          </span>
+          <TouchSwitch
+            id={`${chId}-digest`}
+            checked={state.alertPrefs.facilityDigest && state.needs.facility}
+            onCheckedChange={(facilityDigest) => {
+              if (!state.needs.facility) {
+                flash("Declare a critical facility in Your Needs first");
+                return;
+              }
+              set((s) => ({ alertPrefs: { ...s.alertPrefs, facilityDigest } }));
+            }}
+          />
+        </label>
+      </Panel>
+      <p className="-mt-1 px-1 text-xs text-pretty text-muted-foreground">
+        Escalation timing: medical or facility at 4 hours, mobility at 12 hours, otherwise centers at 24 hours.{" "}
+        <button type="button" className="font-medium text-brand-ink underline-offset-2 hover:underline" onClick={() => set({ screen: "services", servicesFrom: "notifications" })}>
+          Open Services
+        </button>
+      </p>
 
       <SectionHeader>Message Previews</SectionHeader>
       {previewMessages(m, state).map((ms) => {
