@@ -14,6 +14,7 @@ import { statusLabel } from "@/lib/concierge/model";
 import { DEBUG_MENU, DebugMenu } from "@/components/concierge/debug-menu";
 import { ChatComposer, ChatHeader, ChatThread, QuickAskChips } from "@/components/concierge/chat";
 import { DashboardSections, EventCard, EventMapHero, FallbackCard, useMapTheme } from "@/components/concierge/home";
+import { InboxBody, InboxButton, InboxHeader } from "@/components/concierge/inbox";
 import { OutageMap } from "@/components/concierge/outage-map";
 import { StatusPill } from "@/components/concierge/primitives";
 import { LocationScreen, NotificationsScreen, SettingsScreen } from "@/components/concierge/settings";
@@ -61,12 +62,12 @@ function DesktopLogo() {
 }
 
 function HeaderPill({ className }: { className?: string }) {
-  const { state, openStatus } = useConcierge();
+  const { state, m, openStatus } = useConcierge();
   const sc = state.scenario;
   return (
     <StatusPill
       scenario={sc}
-      label={statusLabel(sc)}
+      label={statusLabel(sc, m)}
       glowing={sc !== "normal" && state.seen !== sc}
       onClick={openStatus}
       className={className}
@@ -156,7 +157,8 @@ function MobileShell() {
       <header className="flex shrink-0 items-center gap-2.5 border-b bg-background pt-[max(6px,env(safe-area-inset-top))] pr-3 pb-2.5 pl-4">
         <Logo />
         <div className="flex-1" />
-        <HeaderPill />
+        <HeaderPill className="min-w-0" />
+        <InboxButton />
       </header>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -174,6 +176,17 @@ function MobileShell() {
           <StatusHeader titleAs={DrawerTitle} />
           <ScrollArea className="min-h-0 flex-1">
             <StatusBody />
+            <div className="h-[env(safe-area-inset-bottom)]" />
+          </ScrollArea>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={state.inboxOpen && !isDesktop} onOpenChange={onOpenChange}>
+        <DrawerContent className="rounded-t-[20px] shadow-[var(--shadow-lg)]" style={sheetHeight("90dvh")}>
+          <SheetHandle />
+          <InboxHeader titleAs={DrawerTitle} />
+          <ScrollArea className="min-h-0 flex-1">
+            <InboxBody />
             <div className="h-[env(safe-area-inset-bottom)]" />
           </ScrollArea>
         </DrawerContent>
@@ -234,6 +247,7 @@ function DesktopShell() {
         </div>
         <div className="flex-1" />
         <HeaderPill />
+        <InboxButton />
         <ThemeToggle />
         <Button
           variant={inSettings ? "secondary" : "outline"}
@@ -283,6 +297,15 @@ function DesktopShell() {
           <StatusHeader titleAs={SheetTitle} />
           <ScrollArea className="min-h-0 flex-1">
             <StatusBody showMap={false} />
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={state.inboxOpen && isDesktop} onOpenChange={onOpenChange}>
+        <SheetContent side="right" showCloseButton={false} className="w-[440px] gap-0 p-0 data-[side=right]:sm:max-w-[440px]">
+          <InboxHeader titleAs={SheetTitle} />
+          <ScrollArea className="min-h-0 flex-1">
+            <InboxBody />
           </ScrollArea>
         </SheetContent>
       </Sheet>

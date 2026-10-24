@@ -1,7 +1,20 @@
 // Outage Concierge estimate model + copy. Ported from the design handoff
 // (ConciergeDashboard.dc.html `model()` and helpers). Pure functions only.
 
-import { alertWorthy, assessRisk, RISK, windStrength, type RiskAssessment, type RiskLevel } from "@/lib/concierge/risk";
+import { featureSource, type PremiseRecord } from "@/lib/concierge/features";
+import {
+  alertWorthy,
+  assessConfidence,
+  assessRisk,
+  INDICATORS,
+  RISK,
+  windStrength,
+  type Confidence,
+  type IndicatorId,
+  type RiskAssessment,
+  type RiskContribution,
+  type RiskLevel,
+} from "@/lib/concierge/risk";
 
 export { RISK, RISK_ORDER, type RiskLevel } from "@/lib/concierge/risk";
 
@@ -14,26 +27,32 @@ export type IconName =
   | "badge-check" | "sparkles" | "list" | "trending-up" | "trending-down"
   | "battery-charging" | "refrigerator" | "moon" | "heart-pulse" | "triangle-alert"
   | "settings" | "circle-check" | "cloud-sun" | "wind" | "tree-pine" | "wrench"
-  | "circle-help" | "cloud-lightning" | "sun";
+  | "circle-help" | "cloud-lightning" | "sun" | "star"
+  | "trees" | "tree-deciduous" | "utility-pole" | "cable" | "git-commit-horizontal" | "git-fork" | "history"
+  | "network" | "mountain" | "building-2" | "route";
 
-export interface Premise {
-  id: string;
-  area: string;
-  kind: string;
+/** A premise as the app sees it: the data record (features.ts) plus values the restoration estimate derives from it. */
+export interface Premise extends PremiseRecord {
+  /** Anonymized circuit name; the ID lookup also accepts it. */
   circuit: string;
-  overhead: boolean;
-  tree: number;
-  single: boolean;
-  hits: number;
+  /** Step restoration is possible (a recloser upstream or a tie switch), so rerouting shortens the repair. */
   upstream: boolean;
+  /** Rural (density at or below the 10th percentile): crews take longer to arrive. */
   remote: boolean;
 }
 
-export const PREMISES: Record<string, Premise> = {
-  "P-20417": { id: "P-20417", area: "Maple Grove", kind: "Tree-lined suburb", circuit: "C-1142", overhead: true, tree: 0.8, single: true, hits: 4, upstream: true, remote: false },
-  "P-33810": { id: "P-33810", area: "Riverside", kind: "Downtown, buried lines", circuit: "C-0871", overhead: false, tree: 0.2, single: false, hits: 1, upstream: false, remote: false },
-  "P-51122": { id: "P-51122", area: "Ridge Road", kind: "Rural, long line", circuit: "C-2290", overhead: true, tree: 0.9, single: true, hits: 5, upstream: true, remote: true },
-};
+const NORMS = featureSource.dataset.norms;
+
+const toPremise = (r: PremiseRecord): Premise => ({
+  ...r,
+  circuit: r.features.circuit,
+  upstream: r.features.reclosersUpstream > 0 || r.features.hasTie === true,
+  remote: r.features.premiseDensity <= NORMS.premiseDensity.p10,
+});
+
+/** Demo premises from src/data/risk-features.json (built by `npm run data:risk`). */
+export const PREMISES: Record<string, Premise> = Object.fromEntries(featureSource.list().map((r) => [r.id, toPremise(r)]));
+export const DEFAULT_PREMISE = featureSource.list()[0].id;
 
 export interface WhatIf {
   poles: number;
@@ -57,8 +76,8 @@ export const TONE: Record<ToneKey, Tone> = {
 
 export const SC: Record<Scenario, { label: string; tone: ToneKey; title: string; tag: string }> = {
   normal: { label: "All Clear", tone: "low", title: "No Outages on Your Line", tag: "No Outages" },
-  watch: { label: "Storm Watch", tone: "mid", title: "Storm Watch: Strong Winds Monday Night", tag: "Storm Watch" },
-  outage: { label: "Outage Detected", tone: "high", title: "Power Outage Detected", tag: "Outage" },
+  watch: { label: "Watch Alert", tone: "mid", title: "Strong Winds Monday", tag: "Watch Alert" },
+  outage: { label: "Power Outage", tone: "high", title: "Power Outage Detected", tag: "Power Outage" },
   restoring: { label: "Restoring Power", tone: "brand", title: "Crews Restoring Power", tag: "Restoring" },
   restored: { label: "Power Restored", tone: "low", title: "Power Restored", tag: "Restored" },
 };
@@ -130,6 +149,7 @@ export interface Model {
   w: number;
   risk: RiskAssessment;
   level: RiskLevel;
+  confidence: Confidence;
   conf: 1 | 2 | 3;
   e: Estimate;
   base: Estimate;
@@ -143,11 +163,13 @@ export interface Model {
 }
 
 export function model(s: ModelInput): Model {
-  const P = PREMISES[s.premise] ?? PREMISES["P-20417"];
+  const P = PREMISES[s.premise] ?? PREMISES[DEFAULT_PREMISE];
   const wind = s.scenario === "normal" ? 18 : s.wind;
   const w = windStrength(wind);
-  const risk = assessRisk({ storm: s.scenario !== "normal", wind, overhead: P.overhead, tree: P.tree, single: P.single, hits: P.hits, hitsOf: 6 });
-  const conf: 1 | 2 | 3 = !P.overhead && wind <= 70 ? 3 : wind > 70 ? 1 : 2;
+  const ctx = { storm: s.scenario !== "normal", wind, features: P.features, norms: NORMS };
+  const risk = assessRisk(ctx);
+  const confidence = assessConfidence(ctx, risk);
+  const conf = confidence.level;
   const est = (o: WhatIf): Estimate => {
     // Labor hours from Install_Labor_HackOHIO.xlsx: pole + crossarm, wire span, transformer.
     let labor = o.poles * (2.5 + 0.93 + 0.59) + o.spans * 0.6 + (o.xfmr ? 2.0 : 0);
@@ -170,7 +192,7 @@ export function model(s: ModelInput): Model {
   const hi = Math.max(lo + 1, Math.round(mid * (1 + spread)));
   const start = s.scenario === "normal" || s.scenario === "watch" ? 21.5 : 21 + 40 / 60;
   const nowH = start + e.wait + e.road * 0.5;
-  return { P, w, risk, level: s.riskOverride ?? risk.level, conf, e, base, lo, hi, start, mid, nowH, delta: e.mid - base.mid, wind };
+  return { P, w, risk, level: s.riskOverride ?? risk.level, confidence, conf, e, base, lo, hi, start, mid, nowH, delta: e.mid - base.mid, wind };
 }
 
 export function timeText(m: Model) {
@@ -210,30 +232,109 @@ export function segments(m: Model, s: WhatIf & { scenario: Scenario }): Segment[
     }));
 }
 
-export interface Factor { up: boolean; s: number; t: string; d: string; effect: string }
+export interface Factor { up: boolean; s: number; icon: IconName; t: string; d: string; effect: string }
 
+type FactorCopy = Pick<Factor, "icon" | "t" | "d">;
+
+/** Signal at or above which an indicator counts as raising the chance (default 0.5). Wind: underground service signals 0.6. */
+const UP_AT: Partial<Record<IndicatorId, number>> = { wind: 0.8, history: 0.3, path: 0.15 };
+
+/** Indicators that scale with wind (they define a `value`), as opposed to fixed network/history traits. */
+const isStormScaled = (c: RiskContribution) => INDICATORS.find((i) => i.id === c.id)?.value !== undefined;
+
+/** Plain-language copy for each risk indicator (risk.ts). Every indicator needs an entry. */
+const FACTOR_COPY: Record<IndicatorId, (m: Model, up: boolean) => FactorCopy> = {
+  wind: (m) =>
+    m.P.features.overhead === false
+      ? { icon: "cable", t: "Your service line is buried", d: "That protects the last stretch to your home, though the lines feeding your street may still be overhead." }
+      : { icon: "utility-pole", t: "Your power comes in on overhead wires", d: "They’re out in the open, exposed to wind and falling branches." },
+  line: (m, up) =>
+    up
+      ? { icon: "network", t: `Your power passes ${m.P.features.upstreamDevices} branch points on its way to you`, d: "Each branch means more line that a falling tree or limb can hit." }
+      : { icon: "network", t: "You’re close to the main line", d: "Less wire between you and the substation means fewer places for damage." },
+  rural: (_m, up) =>
+    up
+      ? { icon: "mountain", t: "You’re in a rural area", d: "Lines run longer through open and wooded country." }
+      : { icon: "building-2", t: "You’re in a built-up area", d: "Lines are shorter, with fewer stretches through open country." },
+  trees: (_m, up) =>
+    up
+      ? { icon: "trees", t: "Lots of trees grow near your lines", d: "Falling limbs cause much of the storm damage on lines like yours." }
+      : { icon: "tree-deciduous", t: "Few trees near your lines", d: "Less chance of branches hitting the wires." },
+  feeder: (m, up) => {
+    const mi = Math.round((m.P.features.circuitOverheadKm ?? 0) * 0.621);
+    return up
+      ? { icon: "route", t: `Your circuit runs about ${mi} miles of overhead line`, d: "A longer circuit has more places where storm damage can cut power." }
+      : { icon: "route", t: "Your circuit is fairly short", d: "Less overhead line means fewer places for storm damage." };
+  },
+  single: (_m, up) =>
+    up
+      ? { icon: "git-commit-horizontal", t: "One line feeds your street", d: "If that line is damaged, there’s no other way to get power to you." }
+      : { icon: "git-fork", t: "Your area has a backup route", d: "AEP can often switch you to another line." },
+  history: (m, up) => ({
+    icon: "history",
+    t: `${m.P.features.circuitStormHits} of the last ${m.P.features.stormsTotal} storms damaged your circuit`,
+    d: up ? "How past storms went is a strong clue for this one." : "Your circuit has held up well in past storms.",
+  }),
+  path: (m, up) =>
+    m.P.features.pathStormHits > 0
+      ? { icon: "history", t: `The line feeding you was damaged in ${m.P.features.pathStormHits} of the last ${m.P.features.stormsTotal} storms`, d: up ? "Damage upstream of you has repeated in big storms." : "It happened, but not often." }
+      : { icon: "history", t: "The line feeding you came through recent storms undamaged", d: "Nothing between you and the substation was damaged in the storms we have on record." },
+};
+
+/**
+ * The factors behind the outage chance, biggest effect first. Built from the risk assessment, so they
+ * always match the score. Indicators with missing data are left out here and disclosed in confText().
+ */
 export function factors(m: Model, scenario: Scenario): Factor[] {
-  const P = m.P;
-  const wind = m.wind;
-  const f: Omit<Factor, "effect">[] = [
-    { up: P.tree >= 0.5, s: P.tree >= 0.7 ? 3 : 1, t: P.tree >= 0.5 ? "Lots of trees grow near your lines" : "Few trees near your lines", d: P.tree >= 0.5 ? "Falling limbs caused most of the damage on your line in February 2025." : "Less chance of branches hitting the wires." },
-    { up: P.overhead, s: 2, t: P.overhead ? "Your power comes on overhead wires" : "Your lines are buried underground", d: P.overhead ? "They’re out in the open, exposed to wind and trees." : "Protected from wind, so storm outages are rarer." },
-    { up: P.single, s: P.single ? 2 : 1, t: P.single ? "One line feeds your street" : "Your area has a backup route", d: P.single ? "If that line is damaged, there’s no other way to get power to you." : "AEP can often switch you to another line." },
-    { up: P.hits >= 3, s: P.hits >= 4 ? 2 : 1, t: `${P.hits} of the last 6 big storms caused outages here`, d: P.hits >= 3 ? "How past storms went is a strong clue for this one." : "Your area has held up well in past storms." },
-  ];
-  if (scenario !== "normal")
-    f.unshift({ up: wind >= 45, s: wind >= 65 ? 3 : wind >= 45 ? 2 : 1, t: wind >= 45 ? `Gusts up to ${wind} mph are expected` : `Winds of ${wind} mph are fairly mild`, d: wind >= 45 ? "Strong enough to bring branches down onto power lines." : "Power lines usually handle winds like this." });
+  const storm = scenario !== "normal";
+  const shown = m.risk.contributions.filter((c) => !c.missing && (storm || !isStormScaled(c)));
+  const f: Omit<Factor, "effect">[] = shown.map((c) => {
+    const up = c.signal >= (UP_AT[c.id] ?? 0.5);
+    return { up, s: c.points, ...FACTOR_COPY[c.id](m, up) };
+  });
+  if (storm) {
+    // The storm itself: what wind adds across every wind-scaled indicator.
+    const s = m.risk.contributions.filter(isStormScaled).reduce((a, c) => a + c.points, 0);
+    const up = m.wind >= 45;
+    f.push({ up, s, icon: "wind", t: up ? `Gusts up to ${m.wind} mph are expected` : `Winds of ${m.wind} mph are fairly mild`, d: up ? "Strong enough to bring branches down onto power lines." : "Power lines usually handle winds like this." });
+  }
   return f
     .sort((a, b) => Number(b.up) - Number(a.up) || b.s - a.s)
     .map((x) => ({ ...x, t: tc(x.t), effect: (x.up ? "Raises" : "Lowers") + " your chance" }));
 }
 
+/** How each missing input is named when we disclose it. */
+const MISSING_COPY: Record<IndicatorId, string> = {
+  wind: "whether your service line is overhead",
+  line: "how your line branches",
+  rural: "how built-up your area is",
+  trees: "tree cover near your lines",
+  feeder: "your circuit’s length",
+  single: "whether your line has a backup route",
+  history: "past storms on your circuit",
+  path: "past storms on the line feeding you",
+};
+
+/** "We don’t have data on tree cover near your lines yet, so we assumed a typical amount." or null. */
+export function missingText(m: Model) {
+  const names = m.confidence.missing.map((id) => MISSING_COPY[id]);
+  if (!names.length) return null;
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names[0];
+  return `We don’t have data on ${list} yet, so we assumed what’s typical for the area.`;
+}
+
 export function confText(m: Model) {
-  return m.conf === 3
-    ? "We’re quite sure: buried lines rarely fail and we have plenty of storm history here."
-    : m.conf === 2
-      ? "We’re fairly sure: we have good storm history for your line and this forecast is in a familiar range."
-      : "We’re less sure: storms this strong are rare in our records. Treat this as a rough guide.";
+  const r = m.confidence.reasons;
+  const base =
+    m.conf === 3
+      ? "We’re quite sure: we have plenty of storm history for your line and this forecast is in a familiar range."
+      : m.conf === 2
+        ? r.includes("exposed-lines")
+          ? "We’re fairly sure: we have good storm history for your line, but overhead lines in a storm like this can go either way."
+          : "We’re fairly sure: we have good storm history for your line, but some of the inputs are assumptions."
+        : "We’re less sure: storms this strong are rare in our records. Treat this as a rough guide.";
+  const missing = missingText(m);
+  return missing ? `${base} ${missing}` : base;
 }
 
 export interface Channels { push: boolean; sms: boolean; email: boolean; call: boolean }
@@ -320,7 +421,7 @@ let msgSeq = 0;
 export const nextId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(msgSeq++).toString(36)}`;
 
 export function greeting(premise: string): BotMessage {
-  const P = PREMISES[premise] ?? PREMISES["P-20417"];
+  const P = PREMISES[premise] ?? PREMISES[DEFAULT_PREMISE];
   return { id: "g", role: "bot", accent: "var(--brand)", headline: "Hi. Ask me anything about your power.", body: `I’m using the live estimate for ${P.area}. I’ll explain things in plain words and tell you when I’m not sure.`, points: [] };
 }
 
@@ -362,7 +463,10 @@ export function answer(intent: Intent, s: ConciergeInput): BotMessage {
     return { ...base, accent: el.ok ? "var(--low)" : "var(--muted-foreground)", headline: el.ok ? "Yes, you’ll get alerts." : "Only if your power goes out.", body: el.ok ? (s.medical ? "Because you told us you rely on medical equipment, you’ll hear from us 48 hours ahead, and we’ll call you if the outage runs long." : "We’ll message you before the storm, when an outage is confirmed, when the estimate changes, and when power is back.") : "Your outage chance is low, so there’s no pre-storm alert. You’ll still hear from us right away if your power goes out.", points: [{ k: "Change this", icon: "settings", kColor: "var(--muted-foreground)", v: "Settings → Notifications." }] };
   }
   if (intent === "why") {
-    return { ...base, headline: "Here’s what we looked at.", body: "We compare your line with how it held up in past storms, including February 2025, then adjust for this storm’s wind.", points: f.slice(0, 4).map((x) => ({ k: x.effect, icon: x.up ? "trending-up" : "trending-down", kColor: x.up ? "var(--high-ink)" : "var(--low-ink)", v: `${x.t}. ${x.d}` })), foot: "We never use or show other customers’ details, crew names, or exact equipment locations." };
+    const missing = missingText(m);
+    const points: ChatPoint[] = f.slice(0, 4).map((x) => ({ k: x.effect, icon: x.icon, kColor: x.up ? "var(--high-ink)" : "var(--low-ink)", v: `${x.t}. ${x.d}` }));
+    if (missing) points.push({ k: "What we don’t know", icon: "circle-help", kColor: "var(--muted-foreground)", v: missing });
+    return { ...base, headline: "Here’s what we looked at.", body: `We compare your line with how it held up in the last ${m.P.features.stormsTotal} storms on record, including February 2025, then adjust for this storm’s wind.`, points, foot: "We never use or show other customers’ details, crew names, or exact equipment locations." };
   }
   return { ...base, accent: "var(--muted-foreground)", headline: "I can’t answer that one reliably.", body: "I can tell you your chance of losing power, how long it might last, how to prepare, and how alerts work. For anything else, contact AEP customer service." };
 }
@@ -434,7 +538,7 @@ export function estimateLine(m: Model, sc: Scenario) {
 export function timeline(m: Model, sc: Scenario) {
   const idx = ORDER.indexOf(sc);
   const events = [
-    { at: 1, title: "Storm Watch Issued", t: "Sat 6:00 PM" },
+    { at: 1, title: "Watch Alert Issued", t: "Sat 6:00 PM" },
     { at: 2, title: "Power Outage Detected", t: "Mon 9:40 PM" },
     { at: 3, title: "Crews On Site · Estimate Updated", t: fmt(m.nowH, true) },
     { at: 4, title: "Power Restored", t: restoredAt(m) },
@@ -449,4 +553,22 @@ export const weather = (sc: Scenario, wind: number) => ({
   label: sc === "normal" ? "Calm · 8 mph" : sc === "watch" ? `Mon · ${wind} mph gusts` : sc === "restored" ? "Clearing · 12 mph" : `Gusts ${wind} mph`,
 });
 
-export const statusLabel = (sc: Scenario) => (sc === "watch" ? "Storm Watch · Mon Night" : SC[sc].label);
+/** Hours since Monday 00:00 → "Mon Morning", "Tue Afternoon", "Mon Night". Hours before 5 AM count as that day's night. */
+export function dayPart(h: number) {
+  const hr = h % 24;
+  const d = Math.min(Math.floor((hr < 5 ? h - 5 : h) / 24), 4);
+  const part = hr < 5 || hr >= 17 ? "Night" : hr < 12 ? "Morning" : "Afternoon";
+  return `${DAY[d]} ${part}`;
+}
+
+/** Header pill text: the status name plus a generic time window. */
+export function statusLabel(sc: Scenario, m: Model) {
+  const when: Record<Scenario, string> = {
+    normal: "All Week",
+    watch: dayPart(m.start),
+    outage: dayPart(m.start),
+    restoring: dayPart(m.nowH),
+    restored: dayPart(m.start + m.mid * 0.95),
+  };
+  return `${SC[sc].label} · ${when[sc]}`;
+}

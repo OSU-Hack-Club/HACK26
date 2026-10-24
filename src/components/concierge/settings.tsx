@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { flushSync } from "react-dom";
 import {
   BellIcon,
   BellOffIcon,
@@ -70,11 +71,43 @@ function IconTile({ icon: I, className }: { icon: LucideIcon; className?: string
   );
 }
 
-const rowClass = "flex min-h-14 w-full cursor-pointer items-center gap-3 border-t px-3.5 py-2.5 text-left transition-colors first:border-t-0 hover:bg-muted";
+/** Matches the TouchSwitch thumb slide (duration-150). */
+const THUMB_MS = 150;
+
+/**
+ * The theme provider disables CSS transitions while the theme class flips, so the thumb
+ * would snap. Slide the thumb first, then crossfade the page into the new theme.
+ */
+function DarkModeSwitch({ id }: { id: string }) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [pending, setPending] = React.useState<boolean | null>(null);
+  const timer = React.useRef<number>(undefined);
+  React.useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const toggle = (on: boolean) => {
+    setPending(on);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => {
+      const apply = () => {
+        // flushSync commits the theme (and next-themes' class effect) inside the transition.
+        flushSync(() => {
+          setTheme(on ? "dark" : "light");
+          setPending(null);
+        });
+      };
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (document.startViewTransition && !reduce) document.startViewTransition(apply);
+      else apply();
+    }, THUMB_MS);
+  };
+
+  return <TouchSwitch id={id} checked={pending ?? resolvedTheme === "dark"} onCheckedChange={toggle} />;
+}
+
+const rowClass ="flex min-h-14 w-full cursor-pointer items-center gap-3 border-t px-3.5 py-2.5 text-left transition-colors first:border-t-0 hover:bg-muted";
 
 export function SettingsScreen({ hideBack = false }: { hideBack?: boolean }) {
   const { state, m, set } = useConcierge();
-  const { resolvedTheme, setTheme } = useTheme();
   const el = eligibility(m, state);
   const darkId = React.useId();
   return (
@@ -105,7 +138,7 @@ export function SettingsScreen({ hideBack = false }: { hideBack?: boolean }) {
         <label htmlFor={darkId} className={rowClass}>
           <IconTile icon={MoonIcon} />
           <span className="flex-1 font-medium">Dark Mode</span>
-          <TouchSwitch id={darkId} checked={resolvedTheme === "dark"} onCheckedChange={(on) => setTheme(on ? "dark" : "light")} />
+          <DarkModeSwitch id={darkId} />
         </label>
       </Panel>
 

@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import {
+  ArrowDownIcon,
   ArrowRightIcon,
+  ArrowUpIcon,
   ChevronDownIcon,
   CircleHelpIcon,
   ClockIcon,
@@ -26,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   RISK,
+  type RiskLevel,
   LEGENDS,
   SC,
   confText,
@@ -41,6 +44,7 @@ import {
   when,
 } from "@/lib/concierge/model";
 import { OutageMap } from "@/components/concierge/outage-map";
+import { ChanceBattery, PowerBattery, type PowerState } from "@/components/concierge/power-battery";
 import {
   ConfirmedBadge,
   Icon,
@@ -147,6 +151,10 @@ interface Kpi {
   value: string;
   sub: string;
   color: string;
+  /** Shows the battery glyph on cards about the power itself. */
+  power?: PowerState;
+  /** Shows the battery glyph for the outage chance; charge drops as the chance rises. */
+  chance?: RiskLevel;
   onClick: () => void;
 }
 
@@ -170,17 +178,17 @@ export function StatusOverview() {
 
   const sets: Record<typeof sc, Kpi[]> = {
     normal: [
-      { icon: GaugeIcon, label: "Outage Chance", value: RISK.minimal.short, sub: "No storms this week", color: "var(--low-ink)", onClick: openFactors },
-      { icon: ZapIcon, label: "Your Power", value: "On", sub: "No outages on your line", color: "var(--low-ink)", onClick: openStatus },
+      { icon: GaugeIcon, label: "Outage Chance", value: RISK.minimal.short, sub: "No storms this week", color: "var(--low-ink)", chance: "minimal", onClick: openFactors },
+      { icon: ZapIcon, label: "Your Power", value: "On", sub: "No outages on your line", color: "var(--low-ink)", power: "on", onClick: openStatus },
     ],
     watch: [
-      { icon: GaugeIcon, label: "Outage Chance", value: B.short, sub: B.label, color: B.ink, onClick: openFactors },
+      { icon: GaugeIcon, label: "Outage Chance", value: B.short, sub: B.label, color: B.ink, chance: m.level, onClick: openFactors },
       { icon: ClockIcon, label: "If It Goes Out", value: `Until ${fmt(m.start + m.hi)}`, sub: `About ${t.hours}`, color: "var(--foreground)", onClick: openStatus },
       { icon: TruckIcon, label: "Crews Ready", value: "6 Crews", sub: "Staged nearby Monday", color: "var(--foreground)", onClick: openStatus },
       { icon: WindIcon, label: "Storm Arrives", value: "Mon 6 PM", sub: "Through Tue 6 AM", color: "var(--mid-ink)", onClick: openStatus },
     ],
     outage: [
-      { icon: ZapOffIcon, label: "Status", value: "Power Out", sub: "Since Mon 9:40 PM", color: "var(--high-ink)", onClick: openStatus },
+      { icon: ZapOffIcon, label: "Status", value: "Power Out", sub: "Since Mon 9:40 PM", color: "var(--high-ink)", power: "out", onClick: openStatus },
       { icon: ClockIcon, label: "Likely Back", value: compactRange, sub: m.conf === 3 ? "Quite sure" : m.conf === 2 ? "Fairly sure" : "Less sure", color: "var(--foreground)", onClick: openStatus },
       { icon: HouseIcon, label: "Homes Out Nearby", value: "1,240", sub: "On your line", color: "var(--foreground)", onClick: openStatus },
       { icon: TruckIcon, label: "Crews", value: "2 Assigned", sub: "Heading to the damage", color: "var(--foreground)", onClick: openStatus },
@@ -189,10 +197,10 @@ export function StatusOverview() {
       { icon: ClockIcon, label: "New Estimate", value: tc(when(m.start + m.mid)), sub: range, color: "var(--brand-ink)", onClick: openStatus },
       { icon: HouseIcon, label: "Still Out", value: "410 Homes", sub: "830 restored so far", color: "var(--foreground)", onClick: openStatus },
       { icon: TruckIcon, label: "Crews", value: "3 On Site", sub: "Near your street", color: "var(--foreground)", onClick: openStatus },
-      { icon: ZapOffIcon, label: "Status", value: "Power Out", sub: "Since Mon 9:40 PM", color: "var(--high-ink)", onClick: openStatus },
+      { icon: ZapIcon, label: "Your Power", value: "Restoring", sub: "Out since Mon 9:40 PM", color: "var(--brand-ink)", power: "restoring", onClick: openStatus },
     ],
     restored: [
-      { icon: ZapIcon, label: "Back On", value: restoredAt(m), sub: "Confirmed by AEP", color: "var(--low-ink)", onClick: openStatus },
+      { icon: ZapIcon, label: "Back On", value: restoredAt(m), sub: "Confirmed by AEP", color: "var(--low-ink)", power: "restored", onClick: openStatus },
       { icon: TargetIcon, label: "Our Estimate", value: "On Target", sub: `We said ${range}`, color: "var(--foreground)", onClick: openStatus },
     ],
   };
@@ -209,7 +217,13 @@ export function StatusOverview() {
             className="flex min-h-[104px] cursor-pointer flex-col gap-0.5 rounded-[14px] bg-card px-3.5 py-3 text-left text-card-foreground ring-1 ring-foreground/10 transition-colors hover:bg-muted"
           >
             <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <k.icon size={13} aria-hidden />
+              {k.chance ? (
+                <ChanceBattery level={k.chance} className="-my-1" />
+              ) : k.power ? (
+                <PowerBattery state={k.power} className="-my-1" />
+              ) : (
+                <k.icon size={13} aria-hidden />
+              )}
               {k.label}
             </span>
             <span className="mt-auto text-xl leading-tight font-semibold tracking-[-0.02em] text-pretty" style={{ color: k.color }}>
@@ -325,13 +339,22 @@ export function OutageRisk() {
             {list.map((f) => (
               <div key={f.t} className="flex gap-3 border-t px-4 py-3">
                 <span
-                  className="flex size-[30px] shrink-0 items-center justify-center rounded-lg"
+                  className="relative flex size-[30px] shrink-0 items-center justify-center rounded-lg"
                   style={{ background: f.up ? "var(--high-bg)" : "var(--low-bg)", color: f.up ? "var(--high-ink)" : "var(--low-ink)" }}
                 >
-                  <Icon name={f.up ? "trending-up" : "trending-down"} size={15} />
+                  <Icon name={f.icon} size={16} />
+                  <span
+                    className="absolute -right-1 -bottom-1 flex size-3.5 items-center justify-center rounded-full text-white ring-2 ring-card"
+                    style={{ background: f.up ? "var(--high)" : "var(--low)" }}
+                  >
+                    {f.up ? <ArrowUpIcon size={9} strokeWidth={3} aria-hidden /> : <ArrowDownIcon size={9} strokeWidth={3} aria-hidden />}
+                  </span>
                 </span>
                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="leading-snug font-medium text-pretty">{f.t}</span>
+                  <span className="leading-snug font-medium text-pretty">
+                    {f.t}
+                    <span className="sr-only"> ({f.effect})</span>
+                  </span>
                   <span className="text-[13px] text-pretty text-muted-foreground">{f.d}</span>
                 </div>
               </div>

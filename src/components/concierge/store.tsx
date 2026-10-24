@@ -32,6 +32,10 @@ export interface ConciergeState {
   screen: Screen;
   statusOpen: boolean;
   chatOpen: boolean;
+  /** Notification center sheet. */
+  inboxOpen: boolean;
+  /** Read state the user set per notification id. Unset ids fall back to the item's default. */
+  read: Record<string, boolean>;
   premise: string;
   unknownId: string | null;
   wind: number;
@@ -59,6 +63,9 @@ interface ConciergeContextValue {
   openStatus: () => void;
   closeSheets: () => void;
   openChat: () => void;
+  openInbox: () => void;
+  /** Marks the given notifications read (true) or unread (false). */
+  setRead: (ids: string[], read: boolean) => void;
   ask: (q: string, intent?: Intent) => void;
   pickPremise: (id: string) => void;
   submitId: (raw: string) => void;
@@ -76,6 +83,8 @@ const INITIAL: ConciergeState = {
   screen: "home",
   statusOpen: false,
   chatOpen: false,
+  inboxOpen: false,
+  read: {},
   premise: "P-20417",
   unknownId: null,
   medical: false,
@@ -115,6 +124,7 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
         typing: true,
         chatOpen: true,
         statusOpen: false,
+        inboxOpen: false,
       }));
       const it = intent ?? intentOf(q);
       if (it) {
@@ -154,6 +164,11 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
     [set, pickPremise],
   );
 
+  const setRead = React.useCallback(
+    (ids: string[], read: boolean) => set((s) => ({ read: { ...s.read, ...Object.fromEntries(ids.map((id) => [id, read])) } })),
+    [set],
+  );
+
   const value = React.useMemo<ConciergeContextValue>(
     () => ({
       state,
@@ -163,12 +178,14 @@ export function ConciergeProvider({ children }: { children: React.ReactNode }) {
       ask,
       pickPremise,
       submitId,
-      openStatus: () => set((s) => ({ statusOpen: true, chatOpen: false, seen: s.scenario })),
-      closeSheets: () => set({ statusOpen: false, chatOpen: false }),
-      openChat: () => set({ chatOpen: true, statusOpen: false }),
+      setRead,
+      openStatus: () => set((s) => ({ statusOpen: true, chatOpen: false, inboxOpen: false, seen: s.scenario })),
+      closeSheets: () => set({ statusOpen: false, chatOpen: false, inboxOpen: false }),
+      openChat: () => set({ chatOpen: true, statusOpen: false, inboxOpen: false }),
+      openInbox: () => set({ inboxOpen: true, statusOpen: false, chatOpen: false }),
       resetAll: () => set({ ...INITIAL, chat: [greeting(INITIAL.premise)] }),
     }),
-    [state, set, flash, ask, pickPremise, submitId],
+    [state, set, flash, ask, pickPremise, submitId, setRead],
   );
 
   return <ConciergeContext.Provider value={value}>{children}</ConciergeContext.Provider>;

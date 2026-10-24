@@ -6,6 +6,8 @@ import {
   BadgeCheckIcon,
   BatteryChargingIcon,
   BellIcon,
+  Building2Icon,
+  CableIcon,
   CheckIcon,
   ChevronDownIcon,
   CircleCheckIcon,
@@ -13,21 +15,31 @@ import {
   ClockIcon,
   CloudLightningIcon,
   CloudSunIcon,
+  GitCommitHorizontalIcon,
+  GitForkIcon,
   GaugeIcon,
   HeartPulseIcon,
+  HistoryIcon,
   HouseIcon,
   ListIcon,
   MoonIcon,
+  MountainIcon,
+  NetworkIcon,
   RefrigeratorIcon,
+  RouteIcon,
   SettingsIcon,
   SparklesIcon,
+  StarIcon,
   SunIcon,
   TargetIcon,
+  TreeDeciduousIcon,
   TreePineIcon,
+  TreesIcon,
   TrendingDownIcon,
   TrendingUpIcon,
   TriangleAlertIcon,
   TruckIcon,
+  UtilityPoleIcon,
   WindIcon,
   WrenchIcon,
   ZapIcon,
@@ -66,6 +78,18 @@ const ICONS: Record<IconName, LucideIcon> = {
   "circle-help": CircleHelpIcon,
   "cloud-lightning": CloudLightningIcon,
   sun: SunIcon,
+  star: StarIcon,
+  trees: TreesIcon,
+  "tree-deciduous": TreeDeciduousIcon,
+  "utility-pole": UtilityPoleIcon,
+  cable: CableIcon,
+  "git-commit-horizontal": GitCommitHorizontalIcon,
+  "git-fork": GitForkIcon,
+  history: HistoryIcon,
+  network: NetworkIcon,
+  mountain: MountainIcon,
+  "building-2": Building2Icon,
+  route: RouteIcon,
 };
 
 export function Icon({ name, size = 16, className, strokeWidth }: { name: IconName; size?: number; className?: string; strokeWidth?: number }) {
@@ -126,7 +150,7 @@ export function StatusPill({ scenario, label, glowing, onClick, className }: { s
       type="button"
       onClick={onClick}
       aria-label={`Open status: ${label}`}
-      className={cn("relative isolate flex h-9 cursor-pointer items-center gap-2 rounded-full border border-transparent pr-2.5 pl-3 text-[13px] font-semibold whitespace-nowrap", className)}
+      className={cn("relative isolate flex h-9 max-w-full min-w-0 cursor-pointer items-center gap-2 rounded-full border border-transparent pr-2.5 pl-3 text-[13px] font-semibold whitespace-nowrap", className)}
       style={{ color: tone.ink }}
     >
       <GlowLayers tone={tone} glowing={glowing} pulse />
@@ -136,8 +160,8 @@ export function StatusPill({ scenario, label, glowing, onClick, className }: { s
         )}
         <span className="absolute inset-0 rounded-full" style={{ background: tone.c }} />
       </span>
-      {label}
-      <ChevronDownIcon size={14} aria-hidden />
+      <span className="min-w-0 truncate">{label}</span>
+      <ChevronDownIcon size={14} aria-hidden className="shrink-0" />
     </button>
   );
 }

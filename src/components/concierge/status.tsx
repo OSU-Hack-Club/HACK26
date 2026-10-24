@@ -18,7 +18,7 @@ export function StatusHeader({ titleAs: Title = "span" }: { titleAs?: React.Elem
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="inline-flex h-6 items-center gap-1.5 self-start rounded-full px-2.5 text-xs font-semibold" style={{ background: tone.bg, color: tone.ink }}>
           <Dot color={tone.c} />
-          {statusLabel(sc)}
+          {statusLabel(sc, m)}
         </span>
         <Title className="text-xl leading-tight font-semibold tracking-[-0.02em] text-pretty">{SC[sc].title}</Title>
         <span className="text-xs text-muted-foreground">Updated {timeline(m, sc)[0].t}</span>

@@ -1,0 +1,248 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-24",
+  "sources": [
+    "Customer_Clip",
+    "matched_upstream.txt",
+    "Primary_ExportFeatures",
+    "Switch_Clip",
+    "arcos_prod_damage_09_28_Clip",
+    "Pole_Clip"
+  ],
+  "storms": [
+    {
+      "id": "2023-10-21",
+      "start": "2023-10-21",
+      "end": "2023-10-23",
+      "records": 16
+    },
+    {
+      "id": "2024-01-10",
+      "start": "2024-01-10",
+      "end": "2024-01-10",
+      "records": 11
+    },
+    {
+      "id": "2024-04-12",
+      "start": "2024-04-12",
+      "end": "2024-04-12",
+      "records": 17
+    },
+    {
+      "id": "2024-05-27",
+      "start": "2024-05-27",
+      "end": "2024-05-27",
+      "records": 13
+    },
+    {
+      "id": "2024-08-09",
+      "start": "2024-08-09",
+      "end": "2024-08-09",
+      "records": 11
+    },
+    {
+      "id": "2024-09-26",
+      "start": "2024-09-26",
+      "end": "2024-10-02",
+      "records": 194
+    },
+    {
+      "id": "2024-11-21",
+      "start": "2024-11-21",
+      "end": "2024-11-23",
+      "records": 15
+    },
+    {
+      "id": "2025-01-06",
+      "start": "2025-01-06",
+      "end": "2025-01-07",
+      "records": 46
+    },
+    {
+      "id": "2025-02-12",
+      "start": "2025-02-12",
+      "end": "2025-02-18",
+      "records": 1254
+    },
+    {
+      "id": "2025-05-31",
+      "start": "2025-05-31",
+      "end": "2025-05-31",
+      "records": 11
+    },
+    {
+      "id": "2025-12-19",
+      "start": "2025-12-19",
+      "end": "2025-12-19",
+      "records": 10
+    }
+  ],
+  "norms": {
+    "circuitOverheadKm": {
+      "p10": 8.1,
+      "p50": 21.9,
+      "p90": 59
+    },
+    "nearbyDamage": {
+      "p10": 0,
+      "p50": 4,
+      "p90": 13
+    },
+    "poleAgeYears": {
+      "p10": 10,
+      "p50": 21,
+      "p90": 38
+    },
+    "premiseDensity": {
+      "p10": 49,
+      "p50": 440,
+      "p90": 858
+    },
+    "upstreamDevices": {
+      "p10": 1,
+      "p50": 2,
+      "p90": 4
+    }
+  },
+  "premises": {
+    "P-20417": {
+      "id": "P-20417",
+      "area": "Maple Grove",
+      "kind": "Suburb, overhead lines",
+      "features": {
+        "circuit": "CIR22",
+        "overhead": true,
+        "upstreamDevices": 2,
+        "reclosersUpstream": 1,
+        "hasTie": false,
+        "circuitOverheadKm": 8.1,
+        "circuitPremises": 1484,
+        "stormsTotal": 11,
+        "circuitStormHits": 1,
+        "pathStormHits": 0,
+        "nearbyDamage": 4,
+        "poleAgeYears": 22.5,
+        "premiseDensity": 503,
+        "vegetation": null
+      }
+    },
+    "P-33810": {
+      "id": "P-33810",
+      "area": "Riverside",
+      "kind": "Downtown, buried lines",
+      "features": {
+        "circuit": "CIR85",
+        "overhead": false,
+        "upstreamDevices": 0,
+        "reclosersUpstream": 0,
+        "hasTie": true,
+        "circuitOverheadKm": 4.7,
+        "circuitPremises": 623,
+        "stormsTotal": 11,
+        "circuitStormHits": 0,
+        "pathStormHits": 0,
+        "nearbyDamage": 4,
+        "poleAgeYears": 17,
+        "premiseDensity": 981,
+        "vegetation": null
+      }
+    },
+    "P-51122": {
+      "id": "P-51122",
+      "area": "Ridge Road",
+      "kind": "Rural, long overhead line",
+      "features": {
+        "circuit": "CIR31",
+        "overhead": true,
+        "upstreamDevices": 4,
+        "reclosersUpstream": 3,
+        "hasTie": false,
+        "circuitOverheadKm": 47.5,
+        "circuitPremises": 1407,
+        "stormsTotal": 11,
+        "circuitStormHits": 3,
+        "pathStormHits": 3,
+        "nearbyDamage": 7,
+        "poleAgeYears": null,
+        "premiseDensity": 43,
+        "vegetation": null
+      }
+    }
+  },
+  "report": {
+    "levelMix": {
+      "40": {
+        "levels": {
+          "minimal": 52.7,
+          "low": 47.3,
+          "medium": 0,
+          "high": 0
+        },
+        "confidence": {
+          "1": 0,
+          "2": 0.3,
+          "3": 99.7
+        },
+        "score": {
+          "p10": 0.151,
+          "p50": 0.197,
+          "p90": 0.249
+        }
+      },
+      "58": {
+        "levels": {
+          "minimal": 1.1,
+          "low": 42.4,
+          "medium": 42.8,
+          "high": 13.7
+        },
+        "confidence": {
+          "1": 0,
+          "2": 55.8,
+          "3": 44.2
+        },
+        "score": {
+          "p10": 0.256,
+          "p50": 0.329,
+          "p90": 0.413
+        }
+      },
+      "75": {
+        "levels": {
+          "minimal": 0,
+          "low": 4.3,
+          "medium": 20.7,
+          "high": 75
+        },
+        "confidence": {
+          "1": 100,
+          "2": 0,
+          "3": 0
+        },
+        "score": {
+          "p10": 0.358,
+          "p50": 0.454,
+          "p90": 0.573
+        }
+      }
+    },
+    "backtest": [
+      {
+        "holdout": "2025-02-12",
+        "wind": 58,
+        "premises": 117595,
+        "affectedShare": 0.302,
+        "auc": 0.626,
+        "aucOverheadOnly": 0.464
+      },
+      {
+        "holdout": "2024-09-26",
+        "wind": 58,
+        "premises": 117595,
+        "affectedShare": 0.069,
+        "auc": 0.6,
+        "aucOverheadOnly": 0.468
+      }
+    ]
+  }
+}

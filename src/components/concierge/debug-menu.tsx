@@ -15,7 +15,7 @@ import { useConcierge, type Screen } from "@/components/concierge/store";
  */
 export const DEBUG_MENU = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_DEBUG_MENU === "1";
 
-const SCENARIO_SHORT = { normal: "All Clear", watch: "Storm Watch", outage: "Outage", restoring: "Restoring", restored: "Restored" } as const;
+const SCENARIO_SHORT = { normal: "All Clear", watch: "Watch Alert", outage: "Power Outage", restoring: "Restoring", restored: "Restored" } as const;
 const ACCESS: { id: Access; label: string }[] = [
   { id: "clear", label: "Clear" },
   { id: "limited", label: "Debris" },
@@ -218,7 +218,7 @@ export function DebugMenu() {
             </Field>
 
             <Field label="Screen" className="sm:col-span-2">
-              <Seg value={state.screen} options={SCREENS} onChange={(screen) => set({ screen, statusOpen: false, chatOpen: false })} />
+              <Seg value={state.screen} options={SCREENS} onChange={(screen) => set({ screen, statusOpen: false, chatOpen: false, inboxOpen: false })} />
             </Field>
 
             <Field label="Theme">

@@ -40,8 +40,10 @@ src/
   components/ui/     shadcn components (generated; edit freely)
   components/providers/  theme, tooltip, toaster providers
   hooks/             shared hooks
-  lib/concierge/     estimate model + copy (port of the design handoff) and map-data derivation
+  lib/concierge/     estimate model + copy, risk indicators (risk.ts), feature contract (features.ts), map-data derivation
   data/map-data.json simplified CIR2 lines + ARCOS damage points (from Data1.zip)
+  data/risk-features.json  demo premise features built by `npm run data:risk` (see DEVELOPMENT.md)
+scripts/data/        shapefile readers + the risk-feature pipeline
   lib/utils.ts       cn() helper
   env.ts             typed env
 AEP-Challenge-Materials/  challenge data + docs (do not move)
@@ -85,3 +87,5 @@ unzip -n data/raw/matched_upstream.zip -d data/extracted/matched_upstream
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript check |
+| `npm run data:extract` | Unzip the challenge archives into `AEP-Challenge-Materials/data/extracted` |
+| `npm run data:risk` | Rebuild `src/data/risk-features.json` from the extracted data and print the level mix + backtest ([DEVELOPMENT.md](DEVELOPMENT.md)) |

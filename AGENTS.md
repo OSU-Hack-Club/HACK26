@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Risk data and model
+
+Read `DEVELOPMENT.md` before changing anything in `scripts/data/`, `src/data/risk-features.json`, or `src/lib/concierge/{features,risk,model}.ts`. It documents the data pipeline, the feature contract, the indicator weights, the invariants, and the privacy rules. After changing indicators, thresholds, or the pipeline, run `npm run data:risk` and commit the regenerated JSON.
+
 ## Icons
 
 Two icon libraries are installed. Use them before hand-rolling SVGs.
@@ -29,7 +33,7 @@ Two icon libraries are installed. Use them before hand-rolling SVGs.
 
 ## Outage maps
 
-These rules apply to every map in every status (All Clear, Storm Watch, Outage, Restoring, Restored), on mobile and desktop, and in every screen and sheet.
+These rules apply to every map in every status (All Clear, Watch Alert, Power Outage, Restoring, Restored), on mobile and desktop, and in every screen and sheet.
 
 - **No status pills on maps** (e.g. "Line Running Normally", "Outage Area", "Partly Restored", "Restored"). The header status pill and the event card already show the status. Weather lives in the Status Overview cards, not on the map.
 - **No expand/collapse (maximize/minimize) button on maps.** Event details open from the event card or the header status pill, never by tapping the map.
