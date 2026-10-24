@@ -127,7 +127,8 @@ export function DebugMenu() {
     SCENARIO_SHORT[sc],
     `${RISK[m.level].label}${state.riskOverride ? " (forced)" : ""}`,
     sc === "normal" ? "calm" : `${state.wind} mph`,
-    state.unknownId ? `ID ${state.unknownId}` : PREMISES[state.premise].area,
+    // A real premise from /api/premise has a hashed id that isn't in the demo PREMISES map.
+    state.unknownId ? `ID ${state.unknownId}` : (state.premiseOverride?.record.area ?? PREMISES[state.premise]?.area ?? "Unknown"),
     `back ${t.hours}`,
   ];
 

@@ -25,6 +25,12 @@ const serverSchema = z.object({
   OPENWEATHER_API_KEY: optional,
   DATA_DIR: z.string().default("./AEP-Challenge-Materials/data/extracted"),
   DATABASE_URL: optional,
+  // DynamoDB premise lookup (optional; the app falls back to the static demo premises when unset).
+  // See scripts/data/load-dynamo.mjs and DEVELOPMENT.md › Making the data dynamic.
+  DYNAMODB_TABLE: optional,
+  AWS_REGION: z.string().default("us-east-2"),
+  /** Keyed hash for premise IDs; must match the value used by scripts/data/export-premises.mjs. */
+  PREMISE_HASH_SECRET: optional,
 });
 
 const clientSchema = z.object({

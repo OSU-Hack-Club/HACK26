@@ -36,6 +36,7 @@ src/
     api/map          outage-map GeoJSON derived from the CIR2 extract (static)
     api/chat         LLM fallback for concierge questions the intents don't cover
     api/outage       demo event feed (scenarios, sample premises, what-if defaults)
+    api/premise      optional real-premise lookup backed by DynamoDB (docs/dynamodb-premise-lookup.md)
   components/concierge/  the Outage Concierge UI (mobile + desktop shells, map, chat, settings)
   components/ui/     shadcn components (generated; edit freely)
   components/providers/  theme, tooltip, toaster providers
@@ -43,7 +44,8 @@ src/
   lib/concierge/     estimate model + copy, risk indicators (risk.ts), feature contract (features.ts), map-data derivation
   data/map-data.json simplified CIR2 lines + ARCOS damage points (from Data1.zip)
   data/risk-features.json  demo premise features built by `npm run data:risk` (see DEVELOPMENT.md)
-scripts/data/        shapefile readers + the risk-feature pipeline
+scripts/data/        shapefile readers + the risk-feature pipeline, plus the DynamoDB export/load scripts
+docs/                feature docs (dynamodb-premise-lookup.md)
   lib/utils.ts       cn() helper
   env.ts             typed env
 AEP-Challenge-Materials/  challenge data + docs (do not move)
@@ -89,3 +91,5 @@ unzip -n data/raw/matched_upstream.zip -d data/extracted/matched_upstream
 | `npm run typecheck` | TypeScript check |
 | `npm run data:extract` | Unzip the challenge archives into `AEP-Challenge-Materials/data/extracted` |
 | `npm run data:risk` | Rebuild `src/data/risk-features.json` from the extracted data and print the level mix + backtest ([DEVELOPMENT.md](DEVELOPMENT.md)) |
+| `npm run data:export` | Optional: write every premise as an anonymized record to `AEP-Challenge-Materials/data/exported/` (needs `PREMISE_HASH_SECRET`; see [docs/dynamodb-premise-lookup.md](docs/dynamodb-premise-lookup.md)) |
+| `npm run data:load` | Optional: load the exported records into DynamoDB (`DYNAMODB_TABLE`, AWS credentials) |

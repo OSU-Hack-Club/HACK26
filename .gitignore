@@ -43,3 +43,8 @@ next-env.d.ts
 
 # copied from node_modules by scripts/copy-maplibre-worker.mjs
 /public/maplibre-gl-worker.mjs
+
+# Kiro agent scratch files (command-output capture and local diagnostics); never committed.
+# Deliberately narrow: the .kiro/ directory (steering, hooks, specs) is project config and stays tracked.
+/.kiro_*
+/.kiro.log
