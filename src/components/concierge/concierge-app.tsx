@@ -165,44 +165,52 @@ function BottomNav() {
     { id: "alerts", label: "Alerts", icon: BellIcon, go: openInbox, badge: unread },
     { id: "settings", label: "Settings", icon: SettingsIcon, go: () => set({ screen: "settings", chatOpen: false, inboxOpen: false }) },
   ];
+  const index = Math.max(0, items.findIndex((x) => x.id === tab));
   return (
-    // Frosted glass bar floating over the content, like the header.
+    // Floating liquid-glass capsule. A glass lens sits behind the active tab and slides to the next one.
     <nav
       aria-label="Main"
-      className="absolute inset-x-0 bottom-0 z-20 flex h-(--mobile-nav) border-t border-foreground/10 bg-background/60 px-2 pt-1.5 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-1px_12px_-6px_rgb(0_0_0/0.25)] backdrop-blur-xl backdrop-saturate-150"
+      className="glass absolute inset-x-3 bottom-[max(10px,env(safe-area-inset-bottom))] z-20 mx-auto h-16 max-w-md rounded-full p-1"
     >
-      {items.map(({ id, label, icon: TabIcon, go, badge }) => {
-        const active = tab === id;
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={go}
-            aria-current={active ? "page" : undefined}
-            aria-label={badge ? `${label}, ${badge} unread` : label}
-            className={cn(
-              "group/tab flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors outline-none",
-              active ? "text-brand-ink" : "text-muted-foreground",
-            )}
-          >
-            {/* Pill behind the active icon; also the keyboard focus ring. */}
-            <span
+      <div className="relative flex h-full">
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 transition-transform duration-500 ease-[cubic-bezier(0.3,1.35,0.5,1)] motion-reduce:transition-none"
+          style={{ width: `${100 / items.length}%`, transform: `translateX(${index * 100}%)` }}
+        >
+          {/* Keyed on the tab so the lens squishes each time it lands somewhere new. */}
+          <span
+            key={tab}
+            className="block size-full animate-[lens-squish_500ms_ease-out] rounded-full border border-white/70 bg-brand-soft/75 shadow-[inset_0_1px_0_rgb(255_255_255/0.75),inset_0_-1px_2px_rgb(0_0_0/0.06),0_6px_16px_-6px_rgb(0_0_0/0.3)] backdrop-blur-md backdrop-saturate-200 motion-reduce:animate-none dark:border-white/15 dark:bg-white/12 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_6px_16px_-6px_rgb(0_0_0/0.6)]"
+          />
+        </span>
+        {items.map(({ id, label, icon: TabIcon, go, badge }) => {
+          const active = tab === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={go}
+              aria-current={active ? "page" : undefined}
+              aria-label={badge ? `${label}, ${badge} unread` : label}
               className={cn(
-                "relative flex h-8 w-14 items-center justify-center rounded-full transition-colors group-focus-visible/tab:ring-2 group-focus-visible/tab:ring-ring/50",
-                active && "bg-brand-soft",
+                "relative flex flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-full text-[11px] font-medium transition-[color,transform] duration-300 outline-none focus-visible:ring-2 focus-visible:ring-ring/50 active:scale-95",
+                active ? "text-brand-ink" : "text-muted-foreground",
               )}
             >
-              <TabIcon size={21} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
-              {!!badge && (
-                <span className="absolute -top-1 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-high px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-background">
-                  {badge > 9 ? "9+" : badge}
-                </span>
-              )}
-            </span>
-            {label}
-          </button>
-        );
-      })}
+              <span className="relative flex items-center justify-center">
+                <TabIcon size={21} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+                {!!badge && (
+                  <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-high px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-background">
+                    {badge > 9 ? "9+" : badge}
+                  </span>
+                )}
+              </span>
+              {label}
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }
@@ -221,7 +229,7 @@ function MobileShell() {
       style={
         {
           "--mobile-header": "calc(max(6px, env(safe-area-inset-top)) + 46px)",
-          "--mobile-nav": "calc(max(8px, env(safe-area-inset-bottom)) + 58px)",
+          "--mobile-nav": "calc(max(10px, env(safe-area-inset-bottom)) + 64px)",
         } as React.CSSProperties
       }
     >
