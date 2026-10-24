@@ -89,6 +89,9 @@ export function EventCard({ className }: { className?: string }) {
   );
 }
 
+/** Keeps the outage zone clear of the frosted header, the event card, and the bottom nav. */
+const HERO_EVENT_PADDING = { top: 72, bottom: 300, left: 24, right: 24 };
+
 /**
  * Mobile hero: full-bleed event map with overlays. Drag to pan, pinch to zoom; the page
  * scrolls from the card. Details open from the card or the header status pill.
@@ -112,9 +115,17 @@ export function EventMapHero() {
   return (
     // Pulls up under the frosted mobile header so the map fills the screen behind it.
     <div ref={heroRef} className="relative -mx-3 -mt-[calc(var(--mobile-header,0px)+0.875rem)] h-[500px] bg-muted">
-      <OutageMap scenario={state.scenario} theme={theme} view="event" interactive="gestures" className="absolute inset-0" />
-      {/* Sits above the map attribution (bottom-right, ~34px tall) so the two never overlap. */}
-      <EventCard className="absolute inset-x-3 bottom-11" />
+      <OutageMap
+        scenario={state.scenario}
+        theme={theme}
+        view="event"
+        interactive="gestures"
+        eventPadding={HERO_EVENT_PADDING}
+        className="absolute inset-0 [--map-inset-bottom:var(--mobile-nav,0px)]"
+      />
+      {/* Sits above the map attribution (bottom-right, 24px tall + 10px margin), which sits
+          above the floating bottom nav, so none of the three overlap. */}
+      <EventCard className="absolute inset-x-3 bottom-[calc(var(--mobile-nav,0px)+2.75rem)]" />
     </div>
   );
 }

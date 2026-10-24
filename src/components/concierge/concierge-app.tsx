@@ -166,7 +166,11 @@ function BottomNav() {
     { id: "settings", label: "Settings", icon: SettingsIcon, go: () => set({ screen: "settings", chatOpen: false, inboxOpen: false }) },
   ];
   return (
-    <nav aria-label="Main" className="flex shrink-0 border-t bg-background px-1 pb-[env(safe-area-inset-bottom)]">
+    // Frosted glass bar floating over the content, like the header.
+    <nav
+      aria-label="Main"
+      className="absolute inset-x-0 bottom-0 z-20 flex h-(--mobile-nav) border-t border-foreground/10 bg-background/60 px-2 pt-1.5 pb-[max(8px,env(safe-area-inset-bottom))] shadow-[0_-1px_12px_-6px_rgb(0_0_0/0.25)] backdrop-blur-xl backdrop-saturate-150"
+    >
       {items.map(({ id, label, icon: TabIcon, go, badge }) => {
         const active = tab === id;
         return (
@@ -177,14 +181,20 @@ function BottomNav() {
             aria-current={active ? "page" : undefined}
             aria-label={badge ? `${label}, ${badge} unread` : label}
             className={cn(
-              "flex h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors outline-none focus-visible:bg-muted",
+              "group/tab flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors outline-none",
               active ? "text-brand-ink" : "text-muted-foreground",
             )}
           >
-            <span className="relative">
-              <TabIcon size={22} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+            {/* Pill behind the active icon; also the keyboard focus ring. */}
+            <span
+              className={cn(
+                "relative flex h-8 w-14 items-center justify-center rounded-full transition-colors group-focus-visible/tab:ring-2 group-focus-visible/tab:ring-ring/50",
+                active && "bg-brand-soft",
+              )}
+            >
+              <TabIcon size={21} strokeWidth={active ? 2.25 : 1.75} aria-hidden />
               {!!badge && (
-                <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-high px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-background">
+                <span className="absolute -top-1 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-high px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-background">
                   {badge > 9 ? "9+" : badge}
                 </span>
               )}
@@ -208,7 +218,12 @@ function MobileShell() {
   return (
     <div
       className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-page lg:hidden"
-      style={{ "--mobile-header": "calc(max(6px, env(safe-area-inset-top)) + 46px)" } as React.CSSProperties}
+      style={
+        {
+          "--mobile-header": "calc(max(6px, env(safe-area-inset-top)) + 46px)",
+          "--mobile-nav": "calc(max(8px, env(safe-area-inset-bottom)) + 58px)",
+        } as React.CSSProperties
+      }
     >
       {/* Frosted glass bar floating over the content, so the map and page scroll beneath it.
           Equal side columns keep the pill centered; the logo shrinks before the label truncates. */}
@@ -219,7 +234,7 @@ function MobileShell() {
       </header>
 
       {tab === "chat" ? (
-        <section className="flex min-h-0 flex-1 flex-col bg-background pt-(--mobile-header)" aria-label="Outage Concierge chat">
+        <section className="flex min-h-0 flex-1 flex-col bg-background pt-(--mobile-header) pb-(--mobile-nav)" aria-label="Outage Concierge chat">
           <ChatHeader />
           <ScrollArea className="min-h-0 flex-1">
             <ChatThread />
@@ -231,12 +246,13 @@ function MobileShell() {
           <InboxHeader closable={false} titleAs="h1" />
           <ScrollArea className="min-h-0 flex-1">
             <InboxBody />
+            <div aria-hidden className="h-(--mobile-nav)" />
           </ScrollArea>
         </section>
       ) : (
         <ScrollArea className="min-h-0 flex-1">
           <ScrollTopOn when={state.screen} />
-          <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-3 pt-[calc(var(--mobile-header)+0.875rem)] pb-4">
+          <main className="mx-auto flex w-full max-w-2xl flex-col gap-3 px-3 pt-[calc(var(--mobile-header)+0.875rem)] pb-[calc(var(--mobile-nav)+1.25rem)]">
             <ScreenContent withMap hideBack />
           </main>
         </ScrollArea>
