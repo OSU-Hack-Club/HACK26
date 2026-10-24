@@ -1,0 +1,66 @@
+import { z } from "zod";
+
+/**
+ * Typed, validated environment variables.
+ *
+ * - Add server-only secrets to `serverSchema` (never shipped to the browser).
+ * - Add browser-visible values to `clientSchema` (must start with NEXT_PUBLIC_)
+ *   AND reference them literally in `clientValues` so Next.js can inline them.
+ * - Keep `.env.example` in sync when you add a variable.
+ */
+
+const optional = z
+  .string()
+  .optional()
+  .transform((v) => (v === "" ? undefined : v));
+
+const serverSchema = z.object({
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
+  ANTHROPIC_API_KEY: optional,
+  AI_MODEL: z.string().default("claude-sonnet-5-5"),
+  OPENAI_API_KEY: optional,
+  NWS_USER_AGENT: z.string().default("HACK26 Outage Concierge"),
+  OPENWEATHER_API_KEY: optional,
+  DATA_DIR: z.string().default("./AEP-Challenge-Materials/data/extracted"),
+  DATABASE_URL: optional,
+});
+
+const clientSchema = z.object({
+  NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
+  NEXT_PUBLIC_MAPBOX_TOKEN: optional,
+});
+
+const clientValues = {
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_MAPBOX_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_TOKEN,
+};
+
+const isServer = typeof window === "undefined";
+
+function parse<T extends z.ZodType>(schema: T, values: unknown): z.infer<T> {
+  const result = schema.safeParse(values);
+  if (!result.success) {
+    console.error("Invalid environment variables:", z.flattenError(result.error).fieldErrors);
+    throw new Error("Invalid environment variables. Check .env.local against .env.example.");
+  }
+  return result.data;
+}
+
+type ServerEnv = z.infer<typeof serverSchema>;
+type ClientEnv = z.infer<typeof clientSchema>;
+
+export const env: ServerEnv & ClientEnv = {
+  ...(isServer ? parse(serverSchema, process.env) : ({} as ServerEnv)),
+  ...parse(clientSchema, clientValues),
+};
+
+/** Throw a clear error when a feature needs a key that isn't configured. */
+export function requireEnv<K extends keyof typeof env>(key: K): NonNullable<(typeof env)[K]> {
+  const value = env[key];
+  if (value === undefined || value === null || value === "") {
+    throw new Error(`Missing env var ${String(key)}. Add it to .env.local (see .env.example).`);
+  }
+  return value as NonNullable<(typeof env)[K]>;
+}
