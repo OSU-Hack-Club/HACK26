@@ -15,7 +15,7 @@
 
 ### 1 · Title and team (0:00–0:11, 24 words, budget ~25) — Speaker: Adib
 
-We're Adib, Ornob and Gautham. This is the AI Outage Concierge. It turns AEP's storm data into plain, honest answers for a single home.
+This is the AI Outage Concierge. It turns AEP's storm data into plain, honest answers for a single home.
 
 *Rubric: Communication (introduces the team and the idea).*
 
