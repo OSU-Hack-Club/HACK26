@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { statusLabel } from "@/lib/concierge/model";
+import { fallbackKind, statusLabel } from "@/lib/concierge/model";
 import { DEBUG_MENU, DebugMenu } from "@/components/concierge/debug-menu";
 import { ChatComposer, ChatHeader, ChatThread, QuickAskChips } from "@/components/concierge/chat";
 import { DashboardSections, EventCard, EventMapHero, FallbackCard, useMapTheme } from "@/components/concierge/home";
@@ -19,6 +19,7 @@ import { OutageMap } from "@/components/concierge/outage-map";
 import { StatusPill } from "@/components/concierge/primitives";
 import { HelpScreen, LocationScreen, NotificationsScreen, SettingsScreen } from "@/components/concierge/settings";
 import { ServicesScreen } from "@/components/concierge/services";
+import { StaffApp } from "@/components/concierge/staff";
 import { StatusBody, StatusHeader } from "@/components/concierge/status";
 import { ConciergeProvider, DESKTOP, useConcierge, useMediaQuery } from "@/components/concierge/store";
 
@@ -29,10 +30,21 @@ export function ConciergeApp() {
     <ConciergeProvider>
       <div className="flex h-dvh flex-col overflow-hidden">
         {DEBUG_MENU && <DebugMenu />}
-        <MobileShell />
-        <DesktopShell />
+        <Shells />
       </div>
     </ConciergeProvider>
+  );
+}
+
+/** Demo mode swaps the whole app between the customer account and the staff console. */
+function Shells() {
+  const { role } = useConcierge();
+  if (role === "staff") return <StaffApp />;
+  return (
+    <>
+      <MobileShell />
+      <DesktopShell />
+    </>
   );
 }
 
@@ -90,7 +102,7 @@ function ScrollTopOn({ when }: { when: unknown }) {
 }
 
 function ScreenContent({ withMap, hideBack = false }: { withMap: boolean; hideBack?: boolean }) {
-  const { state } = useConcierge();
+  const { state, m } = useConcierge();
   switch (state.screen) {
     case "settings":
       return <SettingsScreen hideBack={hideBack} />;
@@ -103,7 +115,7 @@ function ScreenContent({ withMap, hideBack = false }: { withMap: boolean; hideBa
     case "services":
       return <ServicesScreen />;
     default:
-      if (state.unknownId) return <FallbackCard />;
+      if (fallbackKind(state, m)) return <FallbackCard />;
       return (
         <>
           {withMap && <EventMapHero />}
@@ -353,7 +365,7 @@ function DesktopShell() {
             eventPadding={DESKTOP_EVENT_PADDING}
             className="absolute inset-0"
           />
-          {!state.unknownId && <EventCard className="absolute bottom-6 left-4 w-[380px]" />}
+          {!fallbackKind(state, m) && <EventCard className="absolute bottom-6 left-4 w-[380px]" />}
         </section>
 
         <div className="flex min-h-0 flex-col border-l">

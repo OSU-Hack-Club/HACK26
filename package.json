@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "data:extract": "node scripts/data/extract.mjs",
     "data:risk": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/data/build-risk-features.mjs",
     "data:restoration": "node scripts/data/build-restoration.mjs",
@@ -46,6 +47,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.12"
   }
 }

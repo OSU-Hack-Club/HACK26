@@ -1,0 +1,4 @@
+node_modules
+out
+public/captures
+src/captures.json

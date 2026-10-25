@@ -236,6 +236,8 @@ export interface AnswerResult {
   text: string;
   provider: Provider;
   model: string;
+  /** The question or context matched a prompt-injection pattern, so the guard note was added. */
+  flagged?: boolean;
 }
 
 /**
@@ -248,18 +250,12 @@ export async function generateAnswer(rawQuestion: string, context: string): Prom
   const messages = buildMessages(question, context, flagged);
 
   const provider = await resolveProvider();
-  switch (provider) {
-    case "anthropic":
-      return viaAnthropic(messages);
-    case "openai":
-      return viaOpenAICompatible(
-        { baseUrl: env.OPENAI_BASE_URL, apiKey: env.OPENAI_API_KEY, model: env.AI_MODEL },
-        messages,
-        "openai",
-      );
-    case "ollama":
-      return viaOllama(messages);
-  }
+  const result = await (provider === "anthropic"
+    ? viaAnthropic(messages)
+    : provider === "openai"
+      ? viaOpenAICompatible({ baseUrl: env.OPENAI_BASE_URL, apiKey: env.OPENAI_API_KEY, model: env.AI_MODEL }, messages, "openai")
+      : viaOllama(messages));
+  return { ...result, flagged };
 }
 
 const trimSlash = (u: string) => u.replace(/\/+$/, "");

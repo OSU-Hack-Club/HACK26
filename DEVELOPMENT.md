@@ -111,6 +111,8 @@ score = `BASELINE` (0.05) + Σ weight × value. Storm-scaled indicators use valu
 
 **Confidence** (`assessConfidence`): wind > 70 mph → 1, because storms that strong are rare in the records (assumption: ARCOS has no wind data). Any of the following → 2: assumed data contributing ≥ 0.03 points, overhead service in ≥ 45 mph gusts, or fewer than 3 storms on record. Otherwise → 3. Each rule that fires is listed in `reasons`. Missing inputs are listed in `missing`.
 
+**Reliability** (`Confidence.reliable`): during a storm, the model gives no number at all when either fewer than `MIN_HISTORY_STORMS` (3) storms are on record **and** assumed data passes the 0.03-point limit, or at least `UNRELIABLE_MISSING_SHARE` (35%) of the score rests on assumed inputs. Confidence drops to 1, and `fallbackKind()` in `model.ts` returns `"unreliable"`. The app then shows the fallback card. Chat, AI context and customer messages withhold the chance and time. Storm alerts stay on, because we can't rule an outage out. The audit trail logs "Fallback shown: not enough data" for staff review. All three demo premises stay reliable from 30 to 100 mph (`model.test.ts`). On the full extract (117,595 premises), the fallback fires for about 0.2–0.3% of premises at 40–58 mph, which is the confidence-1 share in the build report. `LIMITED_SAMPLE` in `model.ts` is a fictional premise that triggers the fallback for the demo.
+
 **Current report** (2026-10-24 data):
 
 | | minimal | low | medium | high | critical |
@@ -234,7 +236,8 @@ The UI only depends on the `RiskDataset` shape (features.ts) and the scenario in
 ## Privacy rules
 
 - Nothing that identifies a premise leaves the build script: no `premise_nu`, addresses, service-point coordinates, device IDs or location numbers, or life-support flags. Only aggregated counts and anonymized circuit names (`CIR…`, already anonymized in the challenge data).
-- Medical equipment and the other needs (`Needs` in `model.ts`: mobility, hearing, vision, critical facility) are **declared by the customer** in Settings. Never infer them from `critical_c` or any account or network field. They change guidance, alert timing, channels and escalation (`priorityNeed`, `forcedChannel`, `escalation`), and reach `/api/chat` only as yes/no flags.
+- Medical equipment and the other needs (`Needs` in `model.ts`: mobility, hearing, vision, critical facility) are **declared by the customer** in Settings. Never infer them from `critical_c` or any account or network field. They change guidance, alert timing, channels and escalation (`priorityNeed`, `forcedChannel`, `escalation`), and reach `/api/chat` and the audit trail only as yes/no flags.
+- Customer free text goes through `redactPII()` (`privacy.ts`) before it's logged or sent to an LLM. IDs we can't match are masked (`maskId`) in the audit trail. Audit entries (`audit.ts`) never carry addresses, coordinates, crew or employee details, device IDs or life-support flags.
 - Demo area names are fictional. The map "home" is offset ~250 m from real assets (`map-data.ts`). Hospitals, fire and ambulance stations are snapped to a 0.01° (~1 km) grid in both `src/data/map-data.json` and `getMapData()`, so the map shows a general area, never an exact pin.
 - Customer copy may cite counts ("3 of the last 11 storms damaged your circuit") but not crew names, device IDs, or exact equipment locations.
 

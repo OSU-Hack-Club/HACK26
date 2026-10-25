@@ -42,12 +42,14 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
   - how often the circuit and the customer's own power path were damaged in past storms (ARCOS)
 - **Explanation:** the top factors, each marked as raising or lowering the chance, in plain words. For example: "The line feeding you was damaged in 3 of the last 11 storms."
 - **Uncertainty:** confidence is 1–3 with reasons, such as "storms this strong are rare in the records" or "some inputs are assumed". Inputs that are missing are listed.
+- **No guess when the data is too thin:** with fewer than 3 storms on record plus missing inputs, or 35%+ of the score resting on assumptions, the app shows a "we can't make a confident call" card instead of a chance or time. Chat and messages hold back the numbers too, alerts stay on to be safe, and staff get a review item. Try it with the **Cedar Hollow (limited data)** sample under Location.
 - **Sanity check:** a backtest that holds out past storms gives an AUC of about 0.60–0.63. An overhead-only baseline gets about 0.46.
 
 ### 2. Restoration-time estimate
 
 - **Output:** always a range (e.g. "9–17 hours", "Plan to be without power until Tue. 2 PM"), never a single promised time. The range is wider when confidence is lower.
 - **Damage type and quantity:** labor hours for each part come from AEP's `Install_Labor_HackOHIO.xlsx`, counting install and removal. A broken pole is about 5.3 person-hours, a wire span about 0.9 and a transformer about 3.2.
+- **Materials from the structure drawings:** each damage type maps to the parts it needs. A broken pole needs a 40–55 ft pole, a crossarm, 3 insulators, 3 pins and grounding. A wire span needs 2 dead-ends and 2 connectors. A transformer needs a 25 kVA transformer, a fuse cutout and equipment leads. Help › "What Crews May Replace" lists them for the current damage. The staff console shows them for the reported damage, and every estimate in the audit trail records them.
 - **Travel and nonproductive time:** every hour is multiplied by the workbook's indirect labor multiplier (4.5). Road access adds the workbook's per-site adders. Crew arrival time grows with storm strength and with rural areas.
 - **Crews and sequencing:** each damage site gets its own crew, and crews work in parallel. Adding crews beyond the number of sites doesn't help, and the app says so.
 - **Upstream dependencies and step restoration:** the customer chooses where the damage is: their street, a nearby branch, or the main line.
@@ -98,6 +100,18 @@ It follows a customer through a whole storm in five stages: **All Clear → Watc
   - Real-premise lookup happens server-side with hashed IDs.
 - **Fallback:** questions the built-in answers don't cover go to an LLM (Claude). It is limited to the current context, told never to promise times, and told to keep AEP-confirmed facts apart from estimates. If the AI isn't configured or can't answer reliably, the customer gets a clear "I can't answer that one reliably, contact AEP customer service" card.
 
+- **Safety:** questions that mention a hazard (downed wire, sparks, fire, injury) always get a fixed "call 911, stay 30 feet away" card. They never go to the AI, and they're escalated to staff.
+- **Privacy filter:** phone numbers, emails, street addresses, coordinates and long account numbers are redacted from customer text before it's logged or sent to the AI (`privacy.ts`).
+
+## Audit trail and staff console
+
+The brief's **Controls** layer (confidence thresholds, human escalation, privacy filters, audit trail) is built as a staff view.
+
+- **Audit trail** (`audit.ts`): every prediction, restoration estimate, message sent or suppressed, escalation, assistant answer, redaction, override and staff decision is written to an append-only log. Each entry stores the model version, the inputs behind the decision, and the previous entry's hash, so any edit or deletion shows up as a broken chain. Entries hold anonymized premise IDs, levels, ranges and yes/no flags only. Export as CSV or JSON.
+- **Human review queue:** the system flags what it shouldn't act on alone. That means low-confidence predictions, priority-customer escalations (declared medical, mobility or facility need during an outage), safety reports, manual risk overrides, estimate swings of 6+ hours, AI answers that trip the injection guard, fallbacks and unmatched IDs. Staff approve, override or escalate with a note. Each decision is a new audit entry.
+- **Staff console:** overview (live session, KPIs, chain integrity, premise risk board), review queue, audit trail and controls (model weights and thresholds, review rules, privacy filters, AI status). Phones get cards and a bottom nav. Desktop gets tabs and a dense table.
+- **Demo mode:** Settings › Demo › **Account View** (or **Account view** in the debug menu) switches between the customer app and the staff console. Both views share one state, so changes in one show up in the other. The debug menu also has one-tap safety and PII questions, plus a "Tamper audit log" button that shows the integrity check failing.
+
 ## How it's built
 
 - **App:** Next.js 16, React 19, TypeScript, Tailwind v4 and shadcn/ui. It has a mobile layout and a desktop layout, a map that can be dragged and zoomed, a chat, an alerts inbox and settings.
@@ -119,4 +133,6 @@ This is a focused prototype, not an outage-management system.
 - **ARCOS repair dates are day-level only**, so restoration durations aren't calibrated against them. ARCOS is used for damage patterns and how often sites were hard to reach.
 - **Damage location is a what-if input**, not traced from a real fault on the network.
 - **The map area** is not tied to the selected demo premise.
-- **There are no automated tests yet.**
+- **The audit log lives in the browser** (localStorage) for the demo, capped at 500 entries. In production the same entries would stream to write-once storage behind staff authentication.
+- **The staff view has no login.** It's a demo account behind the Settings › Demo switch, hidden with `NEXT_PUBLIC_HIDE_DEMO=1`.
+- **Tests cover the logic, not the UI.** `npm test` runs 42 Vitest unit tests on the audit chain, review queue, privacy filters, the reliability fallback and the materials list. There are no browser tests.

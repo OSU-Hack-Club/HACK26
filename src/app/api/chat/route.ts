@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { z } from "zod";
 
 import { aiEnabled, generateAnswer, NoProviderError, RefusalError } from "@/lib/concierge/llm";
+import { redactPII } from "@/lib/concierge/privacy";
 
 const Body = z.object({
   question: z.string().trim().min(1).max(500),
@@ -20,15 +21,20 @@ export async function GET() {
  * The provider (hosted API or local Ollama) and the hardened, injection-resistant
  * system prompt both live in src/lib/concierge/llm.ts. The client falls back to a
  * canned "can't answer reliably" card on any non-200, so every failure path here
- * returns an error status rather than a half-answer.
+ * returns an error status rather than a half-answer. Personal details are redacted before
+ * the question reaches any provider (src/lib/concierge/privacy.ts).
  */
 export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid request" }, { status: 400 });
 
+  // Personal details (phone, email, address, account numbers) never reach the model.
+  const { text: question, total: redacted } = redactPII(parsed.data.question);
+
   try {
-    const { text, provider, model } = await generateAnswer(parsed.data.question, parsed.data.context);
-    return Response.json({ text, provider, model });
+    const { text, provider, model, flagged } = await generateAnswer(question, parsed.data.context);
+    // `guard` feeds the client's audit trail; it never echoes the question.
+    return Response.json({ text, provider, model, guard: { injection: Boolean(flagged), redacted } });
   } catch (error) {
     if (error instanceof NoProviderError) {
       return Response.json({ error: "Concierge AI is not configured" }, { status: 503 });

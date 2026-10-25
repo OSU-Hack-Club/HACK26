@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored MapLibre worker copied in by scripts/copy-maplibre-worker.mjs.
     "public/maplibre-gl-worker.mjs",
+    // B-roll video project (Remotion), with its own package.json and tooling.
+    "video/**",
   ]),
 ]);
 

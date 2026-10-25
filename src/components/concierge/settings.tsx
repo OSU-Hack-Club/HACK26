@@ -21,6 +21,7 @@ import {
   MessageSquareTextIcon,
   MinusIcon,
   MoonIcon,
+  PackageIcon,
   PhoneIcon,
   SendIcon,
   ShieldCheckIcon,
@@ -35,10 +36,11 @@ import { Input } from "@/components/ui/input";
 import {
   ASSUME_TEXT,
   RISK,
-  ORDER,
+  LIMITED_SAMPLE,
+  damageText,
+  materials,
+  whatIfActive,
   PREMISES,
-  SC,
-  TONE,
   NEED_INFO,
   channelList,
   channelOn,
@@ -53,11 +55,9 @@ import {
   type Needs,
   type PreviewMessage,
 } from "@/lib/concierge/model";
-import { ConfirmedBadge, Dot, Icon, ModelEstimateBadge, Panel, SectionHeader, TouchSwitch } from "@/components/concierge/primitives";
+import { ConfirmedBadge, Icon, ModelEstimateBadge, Panel, SectionHeader, TouchSwitch } from "@/components/concierge/primitives";
 import { useConcierge, type Screen } from "@/components/concierge/store";
-
-/** Show the judges' scenario switcher. Hide it in production. */
-const SHOW_DEMO = process.env.NEXT_PUBLIC_HIDE_DEMO !== "1";
+import { DemoPanel, SHOW_DEMO } from "@/components/concierge/demo-controls";
 
 function BackButton({ to, label }: { to: Screen; label: string }) {
   const { set } = useConcierge();
@@ -165,33 +165,7 @@ export function SettingsScreen({ hideBack = false }: { hideBack?: boolean }) {
       {SHOW_DEMO && (
         <>
           <SectionHeader>Demo</SectionHeader>
-          <Panel className="gap-2.5 p-3.5">
-            <div className="flex flex-col gap-0.5">
-              <span className="font-semibold">Demo Scenario</span>
-              <span className="text-xs text-muted-foreground">For judging. Switches the outage map and every status in the app.</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Demo scenario">
-              {ORDER.map((id) => {
-                const on = id === state.scenario;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => set({ scenario: id, screen: "home" })}
-                    className={cn(
-                      "inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium transition-colors",
-                      on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
-                    )}
-                  >
-                    <Dot color={TONE[SC[id].tone].c} />
-                    {SC[id].label}
-                  </button>
-                );
-              })}
-            </div>
-          </Panel>
+          <DemoPanel />
         </>
       )}
 
@@ -244,6 +218,22 @@ export function HelpScreen() {
           We show a range, not a single time. It’s wider when we’re less sure about the storm. Use the Restoration Explorer on the home screen to see how damage, crews or blocked roads would move it.
         </p>
       </HelpCard>
+      {storm && (
+        <HelpCard icon={PackageIcon} title="What Crews May Replace">
+          <p className="text-muted-foreground">
+            For {damageText(m.input)} ({whatIfActive(m.input) ? "your what-if" : "the damage AEP reported"}), based on AEP’s distribution structure drawings and labor standards:
+          </p>
+          <ul className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+            {materials(m.input).map((x) => (
+              <li key={x.name} className="contents">
+                <span className="text-right font-medium tabular-nums">{x.qty} ×</span>
+                <span>{x.name}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground">Each part has its own install and removal time, which is what adds up to the repair time above.</p>
+        </HelpCard>
+      )}
 
       <SectionHeader>How We Estimate Your Outage Chance</SectionHeader>
       <HelpCard icon={CloudLightningIcon} title="Outage Chance">
@@ -317,7 +307,7 @@ export function NotificationsScreen() {
   const setNeed = (k: keyof Needs, v: boolean) => set((s) => ({ needs: { ...s.needs, [k]: v } }));
 
   const rules = [
-    { ok: el.riskOk, t: "Outage Chance Is Medium or High", d: sc === "normal" ? "No storm in the forecast." : `Yours is ${B.label}.` },
+    { ok: el.riskOk, t: "Outage Chance Is Medium or High", d: sc === "normal" ? "No storm in the forecast." : m.confidence.reliable ? `Yours is ${B.label}.` : "We can’t estimate yours reliably, so we alert you to be safe." },
     {
       ok: priority,
       t: "Medical, Mobility, or Facility Need Declared",
@@ -540,7 +530,7 @@ export function LocationScreen() {
       <SectionHeader>Choose Your Location</SectionHeader>
       <Panel className="p-1.5">
         <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Sample Locations (Anonymized)</div>
-        {Object.values(PREMISES).map((p) => {
+        {[...Object.values(PREMISES), LIMITED_SAMPLE.record].map((p) => {
           const on = p.id === state.premise && !state.unknownId;
           return (
             <button

@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { BugIcon, ChevronDownIcon, MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
+import { BugIcon, ChevronDownIcon, MinusIcon, PlusIcon, RotateCcwIcon, ShieldAlertIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
-import { ORDER, PREMISES, SC, TONE, WHERE, timeText, type Access, type DamageWhere } from "@/lib/concierge/model";
+import { LIMITED_SAMPLE, ORDER, PREMISES, SC, TONE, WHERE, timeText, type Access, type DamageWhere } from "@/lib/concierge/model";
 import { RISK, RISK_ORDER, type RiskLevel } from "@/lib/concierge/risk";
-import { useConcierge, type Screen } from "@/components/concierge/store";
+import { useConcierge, type Role, type Screen } from "@/components/concierge/store";
 
 /**
  * Dev-only control strip for previewing every state of the app. Shown in development,
@@ -30,6 +30,10 @@ const SCREENS: { id: Screen; label: string }[] = [
   { id: "help", label: "Help" },
 ];
 const UNKNOWN_ID = "X-00000";
+const ROLES: { id: Role; label: string }[] = [
+  { id: "customer", label: "Customer" },
+  { id: "staff", label: "Staff" },
+];
 
 function Field({ label, hint, children, className }: { label: string; hint?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
@@ -114,7 +118,7 @@ function ActionButton({ className, ...props }: React.ComponentProps<"button">) {
 }
 
 export function DebugMenu() {
-  const { state, m, set, openStatus, openChat, pickPremise, resetAll } = useConcierge();
+  const { state, m, set, openStatus, openChat, pickPremise, resetAll, role, setRole, audit, tamperAudit, ask } = useConcierge();
   const { theme, setTheme } = useTheme();
   const [open, setOpen] = React.useState(false);
   const panelId = React.useId();
@@ -126,6 +130,7 @@ export function DebugMenu() {
   const location = state.unknownId ? "unknown" : state.premise;
 
   const summary = [
+    role === "staff" ? "Staff view" : "Customer view",
     SCENARIO_SHORT[sc],
     `${RISK[m.level].label}${state.riskOverride ? " (forced)" : ""}`,
     sc === "normal" ? "calm" : `${state.wind} mph`,
@@ -166,6 +171,17 @@ export function DebugMenu() {
               />
             </Field>
 
+            <Field label="Account view" hint={`${audit.length} audit entries`}>
+              <Seg
+                value={role}
+                options={ROLES}
+                onChange={(r) => {
+                  set({ screen: "home", statusOpen: false, chatOpen: false, inboxOpen: false });
+                  setRole(r);
+                }}
+              />
+            </Field>
+
             <Field label="Outage chance" hint={`calculated: ${RISK[calc].short} (score ${m.risk.score.toFixed(2)})`} className="sm:col-span-2">
               <Seg<RiskLevel | "auto">
                 value={state.riskOverride ?? "auto"}
@@ -193,7 +209,7 @@ export function DebugMenu() {
             <Field label="Location">
               <Seg
                 value={location}
-                options={[...Object.values(PREMISES).map((p) => ({ id: p.id, label: p.area })), { id: "unknown", label: "Unknown ID" }]}
+                options={[...Object.values(PREMISES).map((p) => ({ id: p.id, label: p.area })), { id: LIMITED_SAMPLE.record.id, label: "Limited data" }, { id: "unknown", label: "Unknown ID" }]}
                 onChange={(id) => (id === "unknown" ? set({ unknownId: UNKNOWN_ID }) : pickPremise(id))}
               />
             </Field>
@@ -261,6 +277,12 @@ export function DebugMenu() {
                 <ActionButton onClick={openStatus}>Open status</ActionButton>
                 <ActionButton onClick={openChat}>Open chat</ActionButton>
                 <ActionButton onClick={() => set((s) => ({ chat: s.chat.slice(0, 1), typing: false }))}>Clear chat</ActionButton>
+                <ActionButton onClick={() => ask("There's a downed wire sparking near my house")}>Ask safety question</ActionButton>
+                <ActionButton onClick={() => ask("Can you text me at 614-555-0123 about 12 Elm St?")}>Ask with PII</ActionButton>
+                <ActionButton onClick={tamperAudit} className="bg-amber-950 text-amber-200 hover:bg-amber-900">
+                  <ShieldAlertIcon size={12} />
+                  Tamper audit log
+                </ActionButton>
                 <ActionButton onClick={() => resetAll()} className="bg-red-950 text-red-200 hover:bg-red-900">
                   <RotateCcwIcon size={12} />
                   Reset everything

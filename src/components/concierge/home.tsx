@@ -49,8 +49,7 @@ import {
   stepText,
   weather,
   when,
-  whatIfActive,
-} from "@/lib/concierge/model";
+  whatIfActive, fallbackKind, missingText } from "@/lib/concierge/model";
 import { WhatIfControls } from "@/components/concierge/what-if";
 import { OutageMap } from "@/components/concierge/outage-map";
 import { ChanceBattery, PowerBattery, type PowerState } from "@/components/concierge/power-battery";
@@ -147,18 +146,29 @@ export function EventMapHero() {
 }
 
 export function FallbackCard() {
-  const { state, set } = useConcierge();
+  const { state, m, set } = useConcierge();
+  const unreliable = fallbackKind(state, m) === "unreliable";
+  const missing = missingText(m);
   return (
     <Panel className="gap-3 px-4 py-5">
       <span className="flex size-10 items-center justify-center rounded-[10px] bg-muted">
         <CircleHelpIcon size={20} />
       </span>
       <div className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-pretty">
-        We can’t make a confident call for “{state.unknownId}”.
+        {unreliable ? `We can’t make a confident call for ${m.P.area}.` : `We can’t make a confident call for “${state.unknownId}”.`}
       </div>
       <p className="text-pretty text-muted-foreground">
-        We don’t have enough storm history or network data for this ID, so any number we showed you would be a guess. We’d rather tell you that than make one up.
+        {unreliable
+          ? `Your line has only ${m.P.features.stormsTotal} storm${m.P.features.stormsTotal === 1 ? "" : "s"} on record and some of its network data is missing, so any chance or time we showed you would be a guess. We’d rather tell you that than make one up.`
+          : "We don’t have enough storm history or network data for this ID, so any number we showed you would be a guess. We’d rather tell you that than make one up."}
       </p>
+      {unreliable && (
+        <ul className="flex list-disc flex-col gap-1 pl-5 text-[13px] text-pretty">
+          {missing && <li>{missing.replace(", so we assumed what’s typical for the area.", ".")}</li>}
+          <li>You’ll still get an alert within 5 minutes if AEP confirms an outage{state.scenario === "outage" || state.scenario === "restoring" ? " (it has)" : ""}, and a time estimate once crews assess the damage.</li>
+          <li>Plan as if your power could go out: charge phones and battery packs tonight.</li>
+        </ul>
+      )}
       <div className="flex gap-2.5 rounded-[10px] border px-3 py-2.5 text-destructive">
         <TriangleAlertIcon size={16} className="mt-0.5 shrink-0" />
         <span>

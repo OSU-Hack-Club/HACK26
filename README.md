@@ -1,6 +1,6 @@
 # HACK26 — AI Outage Concierge
 
-HackOHI/O 2026 · AEP challenge. Challenge brief: [`Main-Challenge.pdf`](Main-Challenge.pdf) and [`AEP-Challenge-Materials/`](AEP-Challenge-Materials/README.md).
+HackOHI/O 2026 · AEP challenge. Challenge brief: [`Main-Challenge.pdf`](Main-Challenge.pdf) and [`AEP-Challenge-Materials/`](AEP-Challenge-Materials/README.md). Presenting? Start with [`PRESENTATION.md`](PRESENTATION.md).
 
 ## Stack
 
@@ -37,11 +37,12 @@ src/
     api/chat         LLM fallback for concierge questions the intents don't cover
     api/outage       demo event feed (scenarios, sample premises, what-if defaults)
     api/premise      optional real-premise lookup backed by DynamoDB (docs/dynamodb-premise-lookup.md)
-  components/concierge/  the Outage Concierge UI (mobile + desktop shells, map, chat, settings)
+  components/concierge/  the Outage Concierge UI (mobile + desktop shells, map, chat, settings, staff console in staff.tsx)
   components/ui/     shadcn components (generated; edit freely)
   components/providers/  theme, tooltip, toaster providers
   hooks/             shared hooks
-  lib/concierge/     estimate model + copy, risk indicators (risk.ts), feature contract (features.ts), map-data derivation
+  lib/concierge/     estimate model + copy, risk indicators (risk.ts), feature contract (features.ts), map-data derivation,
+                     audit trail (audit.ts), PII redaction + safety detection (privacy.ts)
   data/map-data.json simplified CIR2 lines + ARCOS damage points (from Data1.zip)
   data/risk-features.json  demo premise features built by `npm run data:risk` (see DEVELOPMENT.md)
   data/restoration.json    labor standards behind the restoration estimate, built by `npm run data:restoration`
@@ -55,7 +56,8 @@ AEP-Challenge-Materials/  challenge data + docs (do not move)
 ## Outage Concierge
 
 - One page (`/`) with two layouts sharing one state store: a **mobile** map-first dashboard with bottom sheets (below `lg`), and a **desktop** view with an interactive map, dashboard column and a docked concierge chat (docked at `2xl`, side sheet otherwise).
-- **Demo scenarios** (All Clear → Power Restored) are under Settings › Demo. Set `NEXT_PUBLIC_HIDE_DEMO=1` to hide them.
+- **Demo scenarios** (All Clear → Power Restored) and the **Account View** switch (Customer ↔ AEP Staff) are under Settings › Demo and in the debug menu. Set `NEXT_PUBLIC_HIDE_DEMO=1` to hide them.
+- **Staff console** (`staff.tsx`): overview, human review queue, hash-chained audit trail (CSV/JSON export) and controls. The audit log is built in `src/lib/concierge/audit.ts` by diffing settled state snapshots in the store, plus explicit entries for chat questions and staff decisions. It's kept in localStorage for the demo.
 - The map uses MapLibre GL with CARTO basemaps. `npm run dev` / `npm run build` copy MapLibre's web worker into `public/` first (`scripts/copy-maplibre-worker.mjs`).
 - Free-text chat questions that don't match a built-in intent go to `/api/chat`. The backend is chosen by `AI_PROVIDER` (`auto` by default): a hosted API (`anthropic` via `ANTHROPIC_API_KEY`, or `openai` via `OPENAI_API_KEY`, model from `AI_MODEL`), or a **local Ollama** server on your desktop (`OLLAMA_BASE_URL` + `OLLAMA_MODEL`, any pulled model). `auto` picks the first that's configured: anthropic → openai → ollama. The hardened, prompt-injection-resistant system prompt and the provider routing live in `src/lib/concierge/llm.ts`. Set `AI_PROVIDER=off` to disable AI. AI is also off when nothing is configured (`auto` finds no key and no Ollama, or a named provider has no key): the client checks `GET /api/chat` on load, drops the "Ask AI" labels, and answers only the built-in questions, showing the "can't answer reliably" card for anything else. `/api/health` reports which backends are usable.
 - `--brand` in `globals.css` is a placeholder blue; swap it for AEP's brand color.
@@ -90,6 +92,7 @@ unzip -n data/raw/matched_upstream.zip -d data/extracted/matched_upstream
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript check |
+| `npm test` | Vitest unit tests (`src/**/*.test.ts`): audit trail, privacy filters, reliability fallback, materials |
 | `npm run data:extract` | Unzip the challenge archives into `AEP-Challenge-Materials/data/extracted` |
 | `npm run data:risk` | Rebuild `src/data/risk-features.json` from the extracted data and print the level mix + backtest ([DEVELOPMENT.md](DEVELOPMENT.md)) |
 | `npm run data:restoration` | Rebuild `src/data/restoration.json` (labor hours, adders, ILM from `Install_Labor_HackOHIO.xlsx`; access shares from ARCOS) |

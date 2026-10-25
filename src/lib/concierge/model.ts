@@ -15,7 +15,7 @@ import {
   type RiskContribution,
   type RiskLevel,
 } from "@/lib/concierge/risk";
-import { ASSUME, LABOR, estimate, type Access, type DamageWhere, type Estimate } from "@/lib/concierge/restoration";
+import { ASSUME, LABOR, estimate, type Access, type DamageWhere, type Estimate, type JobId } from "@/lib/concierge/restoration";
 
 export { RISK, RISK_ORDER, type RiskLevel } from "@/lib/concierge/risk";
 export type { Access, DamageWhere, Estimate } from "@/lib/concierge/restoration";
@@ -55,6 +55,41 @@ const toPremise = (r: PremiseRecord, norms: typeof NORMS = NORMS): Premise => ({
 /** Demo premises from src/data/risk-features.json (built by `npm run data:risk`). */
 export const PREMISES: Record<string, Premise> = Object.fromEntries(featureSource.list().map((r) => [r.id, toPremise(r)]));
 export const DEFAULT_PREMISE = featureSource.list()[0].id;
+
+/**
+ * A sample premise with too little data to predict: one storm on record and no service-line, tie-switch
+ * or circuit-length data (like a new service). Picking it shows the fallback instead of a number.
+ * Fictional, built for the demo; never in the risk dataset or on the staff premise board.
+ */
+export const LIMITED_SAMPLE: RuntimePremise = {
+  record: {
+    id: "P-70093",
+    area: "Cedar Hollow",
+    kind: "New service · limited data",
+    features: {
+      circuit: "CIR90",
+      overhead: null,
+      upstreamDevices: 1,
+      reclosersUpstream: 0,
+      hasTie: null,
+      circuitOverheadKm: null,
+      circuitPremises: 0,
+      stormsTotal: 1,
+      circuitStormHits: 0,
+      pathStormHits: 0,
+      nearbyDamage: 0,
+      poleAgeYears: null,
+      premiseDensity: NORMS.premiseDensity.p50,
+      vegetation: null,
+    },
+  },
+  norms: NORMS,
+};
+
+/** Why the app shows its fallback card instead of a prediction, or null when it can predict. */
+export type FallbackKind = "unknown-id" | "unreliable";
+export const fallbackKind = (s: { unknownId: string | null }, m: Model): FallbackKind | null =>
+  s.unknownId ? "unknown-id" : m.confidence.reliable ? null : "unreliable";
 
 export interface WhatIf {
   poles: number;
@@ -277,6 +312,26 @@ export function movers(m: Model, s: WhatIf): Mover[] {
     .slice(0, 3);
 }
 
+export interface Material { name: string; qty: number }
+
+/**
+ * Parts crews would replace for this damage, from the challenge structure drawings and the labor workbook
+ * (src/data/restoration.json). With no poles, wires or transformer, it's the fuse that tripped.
+ */
+export function materials(s: Pick<WhatIf, "poles" | "spans" | "xfmr">): Material[] {
+  const jobs: [JobId, number][] = [
+    ["pole", s.poles],
+    ["span", s.spans],
+    ["xfmr", s.xfmr ? 1 : 0],
+  ];
+  const used = jobs.some(([, n]) => n > 0) ? jobs : ([["fuse", 1]] as [JobId, number][]);
+  const out = new Map<string, number>();
+  for (const [id, n] of used) for (const p of LABOR.jobs[id].parts) out.set(p.name, (out.get(p.name) ?? 0) + p.qty * n);
+  return [...out].filter(([, qty]) => qty > 0).map(([name, qty]) => ({ name, qty }));
+}
+
+export const materialsText = (list: Material[]) => list.map((x) => `${x.qty} × ${x.name}`).join(", ");
+
 /** "+3 h" / "−2 h" for a mover. */
 export const moveText = (h: number) => `${h > 0 ? "+" : "−"}${Math.round(Math.abs(h)) || "<1"} h`;
 
@@ -412,6 +467,7 @@ export function missingText(m: Model) {
 }
 
 export function confText(m: Model) {
+  if (!m.confidence.reliable) return `We can’t estimate this reliably: we have too little storm history or too much missing data for your line. ${missingText(m) ?? ""}`.trim();
   const r = m.confidence.reasons;
   const base =
     m.conf === 3
@@ -464,7 +520,8 @@ export const priorityNeed = (d: Declared) => d.medical || d.needs.mobility || d.
 export const anyDeclared = (d: Declared) => d.medical || Object.values(d.needs).some(Boolean);
 
 export function eligibility(m: Model, s: Declared & { scenario: Scenario }) {
-  const riskOk = alertWorthy(m.level);
+  // Without a reliable prediction we can't rule an outage out, so storm alerts stay on.
+  const riskOk = alertWorthy(m.level) || !m.confidence.reliable;
   return { riskOk, ok: riskOk || priorityNeed(s) || (s.scenario !== "normal" && s.scenario !== "watch") };
 }
 
@@ -527,9 +584,27 @@ export function previewMessages(m: Model, s: WhatIf & Declared & { scenario: Sce
     (s.medical ? " Have backup power ready for medical equipment, or a place to go." : "") +
     (s.needs.mobility ? " If you’d need help leaving, arrange it today." : "") +
     (s.needs.facility ? " Test backup generators and check fuel." : "");
+  // Without a reliable prediction, messages never carry a chance or a time.
+  const sure = m.confidence.reliable;
   const list = [
-    { at: 1, title: "Before the storm", icon: "cloud-lightning" as const, meta: `${chan} · ${first}`, text: `AEP: A strong storm reaches ${m.P.area} Monday evening. There's a ${RISK[m.level].label.toLowerCase()} you lose power. If it goes out, plan to be without it until ${t.plan}. Charge your phone tonight.${med}` },
-    { at: 2, title: "Outage confirmed", icon: "zap-off" as const, meta: `${chan}${call} · within 5 min of outage`, text: `AEP: We know your power is out (reported 9:40 PM). You don't need to call. Our best guess: it's back ${t.range}. We'll text you if that changes.` },
+    {
+      at: 1,
+      title: "Before the storm",
+      icon: "cloud-lightning" as const,
+      meta: `${chan} · ${first}`,
+      text: sure
+        ? `AEP: A strong storm reaches ${m.P.area} Monday evening. There's a ${RISK[m.level].label.toLowerCase()} you lose power. If it goes out, plan to be without it until ${t.plan}. Charge your phone tonight.${med}`
+        : `AEP: A strong storm reaches ${m.P.area} Monday evening. We don't have enough data on your line to estimate your chance of an outage, so plan as if it could go out. Charge your phone tonight.${med}`,
+    },
+    {
+      at: 2,
+      title: "Outage confirmed",
+      icon: "zap-off" as const,
+      meta: `${chan}${call} · within 5 min of outage`,
+      text: sure
+        ? `AEP: We know your power is out (reported 9:40 PM). You don't need to call. Our best guess: it's back ${t.range}. We'll text you if that changes.`
+        : `AEP: We know your power is out (reported 9:40 PM). You don't need to call. We'll send a time estimate once crews have seen the damage.`,
+    },
     { at: 3, title: "Estimate updated", icon: "clock" as const, meta: `${chan} · when the estimate moves 2+ hours`, text: `AEP update: Crews found ${damageText(s)} ${WHERE[s.where].at}.${m.e.stepped ? " They'll switch you back on before the repair is done." : ""} New estimate: back ${t.range}. Stay away from downed wires and call 911 if you see one.` },
     { at: 4, title: "Power restored", icon: "circle-check" as const, meta: `${chan} · as soon as crews finish`, text: `AEP: Power is back on in ${m.P.area} (${restoredAt(m)}). Still out? Your home may need its own repair. Reply OUT and we'll send someone.` },
   ];
@@ -597,6 +672,16 @@ export function answer(intent: Intent, s: ConciergeInput): BotMessage {
   const sc = s.scenario;
   const confWords = ["", "not very sure", "fairly sure", "quite sure"][m.conf];
   const base: BotMessage = { id: nextId("b"), role: "bot", accent: B.c, points: [] };
+  // Fallback: no chance, time or factors when the data can't support them. Confirmed facts still answer.
+  const unsure: BotMessage = {
+    ...base,
+    accent: "var(--muted-foreground)",
+    headline: "I can’t estimate this one reliably.",
+    body: `${confText(m)} Rather than guess, we’ll message you as soon as AEP confirms an outage or crews assess the damage.`,
+    points: [{ k: "Safety", icon: "triangle-alert", kColor: "var(--destructive)", v: "Stay at least 30 feet from downed wires and call 911." }],
+    foot: "No estimate shown: not enough data.",
+  };
+  if (!m.confidence.reliable && ((intent === "risk" && sc === "watch") || (intent === "time" && sc !== "restored" && sc !== "normal") || intent === "why")) return unsure;
   if (intent === "risk") {
     if (sc === "outage" || sc === "restoring")
       return { ...base, accent: "var(--high)", headline: "Yes, your power is out right now.", body: "AEP confirmed it at 9:40 PM Monday. About 1,240 homes on your line are out too, so you don’t need to report it.", points: [{ k: "Confirmed by AEP", icon: "badge-check", kColor: "var(--foreground)", v: sc === "restoring" ? "Crews are on site and power is back for 830 homes upstream of you." : "Crews have been sent to the damage on your line." }, { k: "Our best guess", icon: "sparkles", kColor: "var(--muted-foreground)", v: `It should be back ${t.likely}.` }] };
@@ -605,7 +690,7 @@ export function answer(intent: Intent, s: ConciergeInput): BotMessage {
     return { ...base, headline: B.label, body: B.detail, risk: m.level, points: [{ k: "Main reasons", icon: "list", kColor: "var(--muted-foreground)", v: f.filter((x) => x.up).slice(0, 2).map((x) => x.t).join(". ") + "." }, { k: "How sure we are", icon: "gauge", kColor: "var(--muted-foreground)", v: `We’re ${confWords}. ${m.conf === 1 ? "Storms this strong are rare, so we have less history to learn from." : "The forecast could still shift before Monday."}` }], foot: "This is a prediction, not a promise." };
   }
   if (intent === "time") {
-    if (sc === "restored") return { ...base, accent: "var(--low)", headline: `It came back ${restoredAt(m)}.`, body: `We had guessed ${t.range}, so it landed inside our window.` };
+    if (sc === "restored") return { ...base, accent: "var(--low)", headline: `It came back ${restoredAt(m)}.`, body: m.confidence.reliable ? `We had guessed ${t.range}, so it landed inside our window.` : "We didn’t have enough data to estimate it ahead of time." };
     if (sc === "normal") return { ...base, accent: "var(--low)", headline: "There’s no outage to estimate right now.", body: "If a storm heads your way, I’ll show you how long an outage could last before it happens." };
     const segs = segments(m, s);
     const big = segs.slice().sort((a, b) => b.h - a.h)[0];
@@ -654,6 +739,22 @@ export function answer(intent: Intent, s: ConciergeInput): BotMessage {
   return { ...base, accent: "var(--muted-foreground)", headline: "I can’t answer that one reliably.", body: "I can tell you your chance of losing power, how long it might last, how to prepare, and how alerts work. For anything else, contact AEP customer service." };
 }
 
+/** Fixed answer for questions that mention a hazard (privacy.ts › isSafetyQuestion). Never generated by AI. */
+export function safetyAnswer(): BotMessage {
+  return {
+    id: nextId("s"),
+    role: "bot",
+    accent: "var(--destructive)",
+    headline: "Safety first: if anyone is in danger, call 911.",
+    body: "Stay at least 30 feet from downed wires, even if they look dead, and keep others away. Don’t touch anything the wire is touching.",
+    points: [
+      { k: "Emergency", icon: "triangle-alert", kColor: "var(--destructive)", v: "Call 911 for fire, injury, sparking or a wire on a car or building. Then report it to AEP." },
+      { k: "We’ve flagged this", icon: "phone", kColor: "var(--muted-foreground)", v: "Your message was passed to AEP staff for follow-up." },
+    ],
+    foot: "Safety message. Not an AI answer.",
+  };
+}
+
 export function intentOf(q: string): Intent | null {
   const x = q.toLowerCase();
   if (/why|how do you know|reason|factor/.test(x)) return "why";
@@ -668,7 +769,10 @@ export function intentOf(q: string): Intent | null {
 export function llmContext(s: ConciergeInput) {
   const m = model(s);
   const t = timeText(m);
-  return `Location: ${m.P.area} (${m.P.kind}). Status: ${SC[s.scenario].label}. Storm gusts ${m.wind} mph. Outage chance: ${RISK[m.level].label}. Estimated restoration: ${t.range}. Damage (${whatIfActive(s) ? "customer what-if" : "as reported"}): ${damageText(s)} ${WHERE[s.where].at}, ${s.crews} crews, road access ${s.access}. ${m.e.stepped ? "Crews can switch the customer back on before the repair is done." : "The customer waits for the repair."} Declared by the customer: medical equipment ${s.medical ? "yes" : "no"}, mobility need ${s.needs.mobility ? "yes" : "no"}, deaf or hard of hearing ${s.needs.hearing ? "yes" : "no"}, blind or low vision ${s.needs.vision ? "yes" : "no"}, critical facility ${s.needs.facility ? "yes" : "no"}.`;
+  const prediction = m.confidence.reliable
+    ? `Outage chance: ${RISK[m.level].label}. Estimated restoration: ${t.range}.`
+    : "Outage chance and restoration time: NOT AVAILABLE (too little data for a reliable prediction). Do not give or guess a chance or a time.";
+  return `Location: ${m.P.area} (${m.P.kind}). Status: ${SC[s.scenario].label}. Storm gusts ${m.wind} mph. ${prediction} Damage (${whatIfActive(s) ? "customer what-if" : "as reported"}): ${damageText(s)} ${WHERE[s.where].at}, ${s.crews} crews, road access ${s.access}. ${m.e.stepped ? "Crews can switch the customer back on before the repair is done." : "The customer waits for the repair."} Declared by the customer: medical equipment ${s.medical ? "yes" : "no"}, mobility need ${s.needs.mobility ? "yes" : "no"}, deaf or hard of hearing ${s.needs.hearing ? "yes" : "no"}, blind or low vision ${s.needs.vision ? "yes" : "no"}, critical facility ${s.needs.facility ? "yes" : "no"}.`;
 }
 
 export function quickAsks(sc: Scenario): { intent: Intent; label: string }[] {
@@ -710,12 +814,13 @@ export function facts(m: Model, s: WhatIf & { scenario: Scenario; wind: number }
 
 export function estimateLine(m: Model, sc: Scenario) {
   const t = timeText(m);
+  if (!m.confidence.reliable && sc !== "normal" && sc !== "restored") return "We don’t have enough data on your line to estimate this reliably. We’ll update you once crews assess the damage.";
   return {
     normal: "Your chance of losing power this week is very low.",
     watch: `${RISK[m.level].label} of losing power in this storm. If yours goes out, plan to be without it until ${t.plan}.`,
     outage: `Most likely back ${t.likely}, ${t.range}.`,
     restoring: `Updated: most likely back ${t.likely}, ${t.range}.`,
-    restored: `We estimated ${t.range}. Power came back at ${restoredAt(m)}, inside that window.`,
+    restored: m.confidence.reliable ? `We estimated ${t.range}. Power came back at ${restoredAt(m)}, inside that window.` : `Power came back at ${restoredAt(m)}.`,
   }[sc];
 }
 

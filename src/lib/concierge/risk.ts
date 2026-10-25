@@ -117,8 +117,24 @@ export const RARE_WIND = 70;
 /** Score points resting on assumed (missing) data before confidence drops a step. */
 export const MISSING_POINTS_LIMIT = 0.03;
 
+/**
+ * Below this, the model doesn't give a number at all and the app shows its fallback instead:
+ * a storm forecast, and either thin storm history together with missing inputs, or at least this
+ * share of the score resting on assumed (missing) data.
+ */
+export const MIN_HISTORY_STORMS = 3;
+export const UNRELIABLE_MISSING_SHARE = 0.35;
+
 export type ConfidenceReason = "rare-storm" | "missing-data" | "exposed-lines" | "thin-history";
-export interface Confidence { level: 1 | 2 | 3; reasons: ConfidenceReason[]; missing: IndicatorId[] }
+export interface Confidence {
+  level: 1 | 2 | 3;
+  reasons: ConfidenceReason[];
+  missing: IndicatorId[];
+  /** Share of the score that rests on assumed inputs, 0–1. */
+  assumedShare: number;
+  /** False when the prediction isn't reliable enough to show: the customer gets the fallback instead. */
+  reliable: boolean;
+}
 
 export function assessConfidence(c: RiskContext, r: RiskAssessment): Confidence {
   const reasons: ConfidenceReason[] = [];
@@ -127,9 +143,11 @@ export function assessConfidence(c: RiskContext, r: RiskAssessment): Confidence 
   if (c.storm && c.wind > RARE_WIND) reasons.push("rare-storm");
   if (missingPoints >= MISSING_POINTS_LIMIT) reasons.push("missing-data");
   if (c.storm && c.features.overhead !== false && c.wind >= 45) reasons.push("exposed-lines");
-  if (c.features.stormsTotal < 3) reasons.push("thin-history");
-  const level = reasons.includes("rare-storm") ? 1 : reasons.length ? 2 : 3;
-  return { level, reasons, missing };
+  if (c.features.stormsTotal < MIN_HISTORY_STORMS) reasons.push("thin-history");
+  const assumedShare = r.score > 0 ? missingPoints / r.score : 0;
+  const reliable = !c.storm || !((reasons.includes("thin-history") && reasons.includes("missing-data")) || assumedShare >= UNRELIABLE_MISSING_SHARE);
+  const level = !reliable || reasons.includes("rare-storm") ? 1 : reasons.length ? 2 : 3;
+  return { level, reasons, missing, assumedShare, reliable };
 }
 
 export const RISK_ORDER: RiskLevel[] = ["minimal", "low", "medium", "high", "critical"];

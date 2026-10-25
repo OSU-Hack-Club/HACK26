@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-24",
+  "generatedAt": "2026-10-25",
   "sources": [
     "Customer_Clip",
     "matched_upstream.txt",
@@ -180,8 +180,8 @@
           "critical": 0
         },
         "confidence": {
-          "1": 0,
-          "2": 0.3,
+          "1": 0.2,
+          "2": 0.1,
           "3": 99.7
         },
         "score": {
@@ -199,8 +199,8 @@
           "critical": 0
         },
         "confidence": {
-          "1": 0,
-          "2": 55.8,
+          "1": 0.3,
+          "2": 55.5,
           "3": 44.2
         },
         "score": {
