@@ -9,6 +9,7 @@ import { wipe } from "@remotion/transitions/wipe";
 import { HERO_TO_PHONE_FRAMES, Hero, Messages, PhoneScroll, PhoneTrio, Restoration, RiskCard, Safety, StormTimeline, TIMELINE_FRAMES } from "./clips/customer";
 import { AuditChain, Outro, StaffConsole, StaffMobile, ThemeSwitch } from "./clips/staff";
 import { PRESENTATION_FRAMES, Presentation } from "./clips/presentation";
+import { MOCKUPS_FRAMES, Mockups } from "./clips/mockups";
 import { tween, type ClipProps } from "./theme";
 
 const FPS = 30;
@@ -27,6 +28,7 @@ export const CLIPS: { id: string; component: React.FC<ClipProps>; frames: number
   { id: "AuditChain", component: AuditChain, frames: 210 },
   { id: "StaffMobile", component: StaffMobile, frames: 180 },
   { id: "ThemeSwitch", component: ThemeSwitch, frames: 180 },
+  { id: "Mockups", component: Mockups, frames: MOCKUPS_FRAMES },
   { id: "Outro", component: Outro, frames: 120 },
 ];
 

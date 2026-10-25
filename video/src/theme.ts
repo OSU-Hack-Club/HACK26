@@ -85,7 +85,7 @@ export function layout(theme: ThemeName, name: string): Record<string, Rect> {
 }
 
 /** The team, for the opening and closing titles. */
-export const TEAM = ["Adib S.", "Ornab A.", "Gautham G."];
+export const TEAM = ["Adib S.", "Ornob A.", "Gautham G."];
 
 /** Desktop captures are 2x device pixels; phone captures 3x. */
 export const DESKTOP_DPR = 2;

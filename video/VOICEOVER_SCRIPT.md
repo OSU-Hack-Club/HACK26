@@ -1,6 +1,6 @@
 # AI Outage Concierge: Voiceover Script
 
-**Runtime:** 2:38, in 10 sections. **Spoken words:** 365, about 2:31 at 145 words per minute. That leaves roughly a second of air at each section boundary.
+**Runtime:** 2:52, in 11 sections. **Spoken words:** 393, about 2:43 at 145 words per minute. That leaves roughly a second of air at each section boundary.
 
 **Recording tips**
 
@@ -9,13 +9,13 @@
 - **Breathe at the boundaries.** Leave about half a second of silence at the start and end of each take. Neighboring sections overlap by a second on the timeline, and the silence fills that gap.
 - **Within a section,** pause briefly at each full stop. The short questions in sections 2 and 4 ("For how long?", "Damage on a nearby branch?") work best with a small beat after them.
 - **Say it this way:** AEP = "A-E-P". HackOHI/O = "hack-oh-high-oh". 911 = "nine-one-one". CSV = "C-S-V". JSON = "jay-son".
-- **Speakers rotate:** Adib (1, 4, 7, 10), Gautham (2, 5, 8), Ornab (3, 6, 9). Each person speaks about 120 words.
+- **Speakers rotate:** Adib (1, 4, 7, 11), Gautham (2, 5, 8, 10), Ornob (3, 6, 9). Each person speaks about 120–150 words.
 
 ---
 
 ### 1 · Title and team (0:00–0:11, 24 words, budget ~25) — Speaker: Adib
 
-We're Adib, Ornab and Gautham. This is the AI Outage Concierge. It turns AEP's storm data into plain, honest answers for a single home.
+We're Adib, Ornob and Gautham. This is the AI Outage Concierge. It turns AEP's storm data into plain, honest answers for a single home.
 
 *Rubric: Communication (introduces the team and the idea).*
 
@@ -25,7 +25,7 @@ A storm's coming. Customers want four answers. Will I lose power? For how long? 
 
 *Rubric: Impact (the four customer questions we designed around).*
 
-### 3 · Will I lose power? (0:22–0:40, 40 words, budget ~42) — Speaker: Ornab
+### 3 · Will I lose power? (0:22–0:40, 40 words, budget ~42) — Speaker: Ornob
 
 We asked: do overhead wires alone predict outages? On past storms, that did worse than a coin flip. Nearby past damage pointed the wrong way; we dropped it. What survived is a five-level chance, with reasons, confidence, and what's missing.
 
@@ -43,7 +43,7 @@ One app follows the customer through the whole storm: all clear, watch, outage, 
 
 *Rubric: Innovation (confirmed facts kept apart from estimates), Impact (guidance before, during and after).*
 
-### 6 · Before, during and after (1:09–1:20, 23 words, budget ~26) — Speaker: Ornab
+### 6 · Before, during and after (1:09–1:20, 23 words, budget ~26) — Speaker: Ornob
 
 We send four messages, from storm warning to power restored. Customers declare medical equipment themselves; then alerts come earlier, with a welfare check.
 
@@ -61,7 +61,7 @@ AEP staff get their own console. Its risk board rests on our hardest piece: trac
 
 *Rubric: Breadth and Complexity (the hardest piece: ARCOS damage joined to GIS and topology; human review over the AI), Impact (accountability for AEP staff).*
 
-### 9 · Tamper-evident audit trail (1:59–2:26, 60 words, budget ~62) — Speaker: Ornab
+### 9 · Tamper-evident audit trail (1:59–2:26, 60 words, budget ~62) — Speaker: Ornob
 
 Every action becomes an entry: who acted, what was decided, the inputs, and the model version. Each entry stores the hash of the one before. Customer text is redacted first. It exports to CSV or JSON, and at AEP scale would stream to write-once storage. Edit one entry, and the chain breaks right there. Nobody can rewrite the record unnoticed.
 
@@ -69,7 +69,15 @@ Every action becomes an entry: who acted, what was decided, the inputs, and the 
 
 > Timing cue: say "Edit one entry" as the edited block starts to shake, so "breaks right there" lands on the break.
 
-### 10 · Thank you (2:25–2:38, 27 words, budget ~28) — Speaker: Adib
+### 10 · Even more features (2:25–2:40, 28 words, budget ~36) — Speaker: Gautham
+
+Along with the main app, we have even more features! We designed the iOS side too: alerts, a Live Activity that tracks restoration, Dynamic Island, widgets, and StandBy.
+
+*Rubric: Breadth and Complexity (the same alerts and estimates carried to iOS surfaces), Impact (customers see updates without opening the app).*
+
+> On screen: the title, then quick beats of every iOS mockup, each in a different storm status color. These are design mockups for an iOS app; the product itself is the web app. Say so if a judge asks.
+
+### 11 · Thank you (2:39–2:52, 27 words, budget ~28) — Speaker: Adib
 
 Predict. Explain. Prepare. Communicate. Customers get honest answers, and AEP gets a record of every one. Thank you to AEP and the judges. We'd love your questions.
 
@@ -83,9 +91,9 @@ Predict. Explain. Prepare. Communicate. Customers get honest answers, and AEP ge
 | --- | --- | --- |
 | Innovation | 3, 4, 5, 7 | How did we challenge accepted ideas? The "overhead wires = risky" assumption failed our backtest (3). We give a range, never a single time (4). Confirmed facts stay apart from estimates (5). We say "we don't know" instead of guessing (7). |
 | Curiosity | 3 (lightly) | A question we asked: do overhead wires alone predict outages? More examples are in Q&A below. |
-| Communication | 1, 10, and the video itself | The video is the visual. "Show me your prototype" is left for Q&A. |
-| Project Breadth and Complexity | 3, 4, 6, 7, 8, 9 | How we combined areas: statistics and backtesting (3); STORMS labor standards, topology and structure drawings (4); privacy (6, 9); AI with guardrails and human review (7, 8). Hardest piece: tracing storm damage through the network (8). Scale: write-once audit storage (9). |
-| Impact | 2, 5, 6, 7, 8, 9 | Who it helps: customers asking four questions (2), customers who rely on medical equipment (6), safety (7), AEP staff who need accountability (8, 9). |
+| Communication | 1, 10, 11, and the video itself | The video is the visual. "Show me your prototype" is left for Q&A. |
+| Project Breadth and Complexity | 3, 4, 6, 7, 8, 9, 10 | How we combined areas: statistics and backtesting (3); STORMS labor standards, topology and structure drawings (4); privacy (6, 9); AI with guardrails and human review (7, 8). Hardest piece: tracing storm damage through the network (8). Scale: write-once audit storage (9). |
+| Impact | 2, 5, 6, 7, 8, 9, 10 | Who it helps: customers asking four questions (2), customers who rely on medical equipment (6), safety (7), AEP staff who need accountability (8, 9). |
 | Navigating Challenges | 3 | Something that didn't work: the nearby-damage signal pointed the wrong way in the backtest, so we dropped it. The ARCOS repair-date limit is in Q&A. |
 
 ---

@@ -14,6 +14,7 @@ import { Place } from "../components/place";
 import { BRAND, PALETTE, capture, fontFamily, tween, EASE_IN_OUT, type ClipProps, type ThemeName } from "../theme";
 import { Hero, Messages, PhoneScroll, Restoration, RiskCard, Safety, StormTimeline } from "./customer";
 import { Crop, MORPH } from "./hero-morph";
+import { MOCKUPS_FRAMES, Mockups } from "./mockups";
 import { AuditChain, Outro } from "./staff";
 
 // ---------------------------------------------------------------------------
@@ -228,7 +229,8 @@ const SECTIONS: Section[] = [
   { C: Messages, frames: 330, next: () => slide({ direction: "from-left" }) as never },
   { C: Safety, frames: 420, next: () => slide({ direction: "from-right" }) as never },
   { C: StaffTour, frames: 840, next: () => fade() },
-  { C: AuditTour, frames: 810, next: () => fade() },
+  { C: AuditTour, frames: 810, next: () => wipe({ direction: "from-bottom-left" }) as never },
+  { C: Mockups, frames: MOCKUPS_FRAMES, next: () => fade() },
   { C: Outro, frames: 390, props: { thanks: true } },
 ];
 export const PRESENTATION_FRAMES = SECTIONS.reduce((a, s) => a + s.frames - (s.next ? T : 0), 0);
