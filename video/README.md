@@ -2,7 +2,7 @@
 
 Programmatic b-roll built with [Remotion](https://www.remotion.dev) from real captures of the app. Every clip comes in four variants: **light** or **dark**, each **with text** (titles and labels) or **clean** (no text, for adding your own in the editor).
 
-Output: `out/<Clip>/<Clip>-<theme>-<text|clean>.mp4`. All are 1920×1080, 30 fps, H.264 (CRF 16). Standalone clips fade in and out over their first and last few frames so they cut cleanly.
+Output: `out/<Clip>/<Clip>-<theme>-<text|clean>.mp4`. Rendering again never overwrites: new renders get `-1`, `-2`, … added to the name. All are 1920×1080, 30 fps, H.264 (CRF 16). Standalone clips fade in and out over their first and last few frames so they cut cleanly.
 
 ## Clips
 

@@ -100,6 +100,29 @@ async function settings(page) {
   }
 }
 
+// For the Hero → phone morph: records where each part of the screen sits (CSS px) in <name>.layout.json,
+// then saves <name>-map.png with the `hide` parts hidden, so the bare map can be separated from its overlays.
+async function layers(page, shot, dir, name, parts, hide) {
+  await assertNoDebug(page);
+  const rects = await page.evaluate((parts) => {
+    const out = {};
+    for (const [k, sel] of Object.entries(parts)) {
+      const el = [...document.querySelectorAll(sel)].find((e) => e.getBoundingClientRect().width > 0);
+      const r = el?.getBoundingClientRect();
+      out[k] = r ? [r.x, r.y, r.width, r.height] : null;
+    }
+    return out;
+  }, parts);
+  const missing = Object.keys(rects).filter((k) => !rects[k]);
+  if (missing.length) throw new Error(`${name}: no element for ${missing.join(", ")}`);
+  fs.writeFileSync(path.join(dir, `${name}.layout.json`), JSON.stringify(rects));
+  const style = await page.addStyleTag({ content: `${hide.map((k) => parts[k]).join(", ")} { display: none !important; }` });
+  await sleep(300);
+  await shot(page, `${name}-map`);
+  await style.evaluate((s) => s.remove());
+  await sleep(300);
+}
+
 const radio = (page, name) => page.getByRole("radio", { name, exact: true }).first().click();
 const button = (page, name) => page.getByRole("button", { name, exact: true }).first().click();
 
@@ -114,6 +137,23 @@ async function desktop(browser, theme) {
   console.log(`desktop · ${theme}`);
 
   await shot(page, "desk-watch");
+  await layers(
+    page,
+    shot,
+    dir,
+    "desk-watch",
+    {
+      header: "header",
+      map: 'section[aria-label="Outage map"]',
+      main: 'section[aria-label="Outage map"] + div',
+      chat: 'aside[aria-label="Outage Concierge chat"]',
+      event: '[class*="group/event"]',
+      zoom: ".maplibregl-ctrl-top-right",
+      attrib: ".maplibregl-ctrl-bottom-right",
+      home: ".maplibregl-marker.size-4",
+    },
+    ["event", "zoom", "attrib"],
+  );
   await card(page, "Outage Chance", "card-kpis", { closest: '[class*="grid"]', within: "main" });
   await button(page, "Why We Think So");
   await sleep(600);
@@ -245,6 +285,20 @@ async function mobile(browser, theme) {
   const tab = (name) => page.locator('nav[aria-label="Main"]').getByRole("button", { name: new RegExp(`^${name}`) }).click();
 
   await shot(page, "m-watch");
+  await layers(
+    page,
+    shot,
+    dir,
+    "m-watch",
+    {
+      header: "header",
+      event: '[class*="group/event"]',
+      nav: 'nav[aria-label="Main"]',
+      attrib: ".maplibregl-ctrl-bottom-right",
+      home: ".maplibregl-marker.size-4",
+    },
+    ["header", "event", "nav", "attrib"],
+  );
 
   // Smooth scroll through the home dashboard, one screenshot per frame.
   const seq = path.join(dir, "seq-m-scroll");

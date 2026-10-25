@@ -2,6 +2,7 @@ import { loadFont } from "@remotion/google-fonts/Geist";
 import { Easing, interpolate } from "remotion";
 
 import captures from "./captures.json";
+import layouts from "./layouts.json";
 
 export const { fontFamily } = loadFont("normal", { weights: ["400", "500", "600", "700"], subsets: ["latin"] });
 
@@ -74,6 +75,18 @@ export function size(theme: ThemeName, name: string): [number, number] {
   return m;
 }
 
+export type Rect = [x: number, y: number, w: number, h: number];
+
+/** Where each part of a screen sits, in CSS px (written by capture/capture.mjs, collected by capture/manifest.mjs). */
+export function layout(theme: ThemeName, name: string): Record<string, Rect> {
+  const l = (layouts as unknown as Record<string, Record<string, Record<string, Rect>>>)[theme]?.[name];
+  if (!l) throw new Error(`Missing layout ${theme}/${name}. Run npm run capture.`);
+  return l;
+}
+
+/** The team, for the opening and closing titles. */
+export const TEAM = ["Adib S.", "Ornab A.", "Gautham G."];
+
 /** Desktop captures are 2x device pixels; phone captures 3x. */
 export const DESKTOP_DPR = 2;
 
@@ -83,3 +96,6 @@ export const EASE_IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
 /** interpolate() between two frames with clamping and an ease. */
 export const tween = (frame: number, [a, b]: [number, number], [from, to]: [number, number], easing = EASE) =>
   interpolate(frame, [a, b], [from, to], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing });
+
+/** A clip's length when the presentation stretches it (`len`), or its standalone length. */
+export const lenOr = (len: unknown, standalone: number) => (typeof len === "number" ? len : standalone);

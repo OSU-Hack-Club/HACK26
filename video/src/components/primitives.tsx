@@ -6,8 +6,9 @@ import { BRAND, DESKTOP_DPR, PALETTE, capture, fontFamily, size, tween, type The
 // ---------------------------------------------------------------------------
 // Backdrop: soft gradient, slow-drifting color orbs and a faint dot grid.
 
-export function Backdrop({ theme, hue = 0 }: { theme: ThemeName; hue?: number }) {
-  const frame = useCurrentFrame();
+/** `frameOffset` continues the drift from an earlier clip, so a hard cut between two clips doesn't jump. */
+export function Backdrop({ theme, hue = 0, frameOffset = 0 }: { theme: ThemeName; hue?: number; frameOffset?: number }) {
+  const frame = useCurrentFrame() + frameOffset;
   const p = PALETTE[theme];
   const orb = (i: number) => {
     const t = frame / 30 + i * 2.1;
@@ -242,8 +243,21 @@ export function Chip({ theme, children, delay = 0, color = BRAND, style }: { the
         ...style,
       }}
     >
-      <span style={{ width: 12, height: 12, borderRadius: "50%", background: color, boxShadow: `0 0 16px ${color}` }} />
+      <span style={{ width: 12, height: 12, flexShrink: 0, borderRadius: "50%", background: color, boxShadow: `0 0 16px ${color}` }} />
       {children}
+    </div>
+  );
+}
+
+/** Key facts under a caption: glass chips that pop in one after another and wrap if long. */
+export function Notes({ theme, items, delay = 0, stagger = 14, style }: { theme: ThemeName; items: { text: React.ReactNode; color?: string }[]; delay?: number; stagger?: number; style?: React.CSSProperties }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 14, ...style }}>
+      {items.map((it, i) => (
+        <Chip key={i} theme={theme} delay={delay + i * stagger} color={it.color} style={{ fontSize: 23, fontWeight: 550, lineHeight: 1.3, padding: "12px 20px", maxWidth: 660 }}>
+          {it.text}
+        </Chip>
+      ))}
     </div>
   );
 }

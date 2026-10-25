@@ -6,8 +6,9 @@ import { flip } from "@remotion/transitions/flip";
 import { slide } from "@remotion/transitions/slide";
 import { wipe } from "@remotion/transitions/wipe";
 
-import { Hero, Messages, PhoneScroll, PhoneTrio, Restoration, RiskCard, Safety, StormTimeline, TIMELINE_FRAMES } from "./clips/customer";
+import { HERO_TO_PHONE_FRAMES, Hero, Messages, PhoneScroll, PhoneTrio, Restoration, RiskCard, Safety, StormTimeline, TIMELINE_FRAMES } from "./clips/customer";
 import { AuditChain, Outro, StaffConsole, StaffMobile, ThemeSwitch } from "./clips/staff";
+import { PRESENTATION_FRAMES, Presentation } from "./clips/presentation";
 import { tween, type ClipProps } from "./theme";
 
 const FPS = 30;
@@ -48,9 +49,10 @@ function faded(C: React.FC<ClipProps>): React.FC<ClipProps> {
 // Montage: a ready-cut sizzle of the strongest clips.
 const T = 18;
 const timing = springTiming({ durationInFrames: T, config: { damping: 200 } });
-const MONTAGE: { C: React.FC<ClipProps>; frames: number; next?: () => ReturnType<typeof fade> }[] = [
-  { C: Hero, frames: 150, next: () => slide({ direction: "from-right" }) as never },
-  { C: PhoneScroll, frames: 150, next: () => wipe({ direction: "from-bottom-left" }) as never },
+// No `next` means a straight cut: the Hero morphs into the phone PhoneScroll opens on, so it needs no transition.
+const MONTAGE: { C: React.FC<ClipProps>; frames: number; props?: Record<string, unknown>; next?: () => ReturnType<typeof fade> }[] = [
+  { C: Hero, frames: HERO_TO_PHONE_FRAMES, props: { toPhone: true } },
+  { C: PhoneScroll, frames: 150, props: { fromHero: true }, next: () => wipe({ direction: "from-bottom-left" }) as never },
   { C: RiskCard, frames: 120, next: () => slide({ direction: "from-bottom" }) as never },
   { C: Restoration, frames: 210, next: () => flip({ direction: "from-right" }) as never },
   { C: StormTimeline, frames: TIMELINE_FRAMES, next: () => wipe({ direction: "from-right" }) as never },
@@ -59,15 +61,15 @@ const MONTAGE: { C: React.FC<ClipProps>; frames: number; next?: () => ReturnType
   { C: AuditChain, frames: 200, next: () => fade() },
   { C: Outro, frames: 120 },
 ];
-const MONTAGE_FRAMES = MONTAGE.reduce((a, m) => a + m.frames, 0) - (MONTAGE.length - 1) * T;
+const MONTAGE_FRAMES = MONTAGE.reduce((a, m) => a + m.frames - (m.next ? T : 0), 0);
 
 function Montage(props: ClipProps) {
   return (
     <TransitionSeries>
-      {MONTAGE.map(({ C, frames, next }, i) => (
+      {MONTAGE.map(({ C, frames, props: extra, next }, i) => (
         <React.Fragment key={i}>
           <TransitionSeries.Sequence durationInFrames={frames}>
-            <C {...props} />
+            <C {...props} {...extra} />
           </TransitionSeries.Sequence>
           {next && <TransitionSeries.Transition presentation={next()} timing={timing} />}
         </React.Fragment>
@@ -86,7 +88,7 @@ const VARIANTS = [
 export function Root() {
   return (
     <>
-      {[...CLIPS, { id: "Montage", component: Montage, frames: MONTAGE_FRAMES }].map(({ id, component, frames }) => {
+      {[...CLIPS, { id: "Montage", component: Montage, frames: MONTAGE_FRAMES }, { id: "Presentation", component: Presentation, frames: PRESENTATION_FRAMES }].map(({ id, component, frames }) => {
         const Faded = faded(component);
         return VARIANTS.map((v) => (
           <Composition key={`${id}-${v.suffix}`} id={`${id}-${v.suffix}`} component={Faded} durationInFrames={frames} fps={FPS} width={1920} height={1080} defaultProps={{ theme: v.theme, text: v.text }} />

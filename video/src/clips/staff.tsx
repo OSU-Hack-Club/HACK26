@@ -8,7 +8,8 @@ import { wipe } from "@remotion/transitions/wipe";
 
 import { Backdrop, BrowserFrame, Caption, Card, Logo, Phone, Stage, useEnter, useFloat } from "../components/primitives";
 import { Place } from "../components/place";
-import { BRAND, HIGH, LOW, PALETTE, capture, fontFamily, tween, EASE_IN_OUT, type ClipProps, type ThemeName } from "../theme";
+import { BRAND, HIGH, LOW, PALETTE, capture, fontFamily, lenOr, tween, EASE_IN_OUT, type ClipProps, type ThemeName } from "../theme";
+import { TeamLine } from "./customer";
 
 // ---------------------------------------------------------------------------
 // 9. Staff console: overview → reviews → audit trail inside one browser, a review card lifting off.
@@ -74,10 +75,11 @@ export function StaffConsole({ theme, text }: ClipProps) {
 
 const BLOCKS = 7;
 const TAMPER = 4;
-const TAMPER_AT = 128;
+const TAMPER_AT_DEFAULT = 128;
 
-export function AuditChain({ theme, text }: ClipProps) {
+export function AuditChain({ theme, text, tamperAt, title, sub }: ClipProps) {
   const f = useCurrentFrame();
+  const TAMPER_AT = lenOr(tamperAt, TAMPER_AT_DEFAULT);
   const p = PALETTE[theme];
   const gap = 230;
   const x0 = 960 - ((BLOCKS - 1) * gap) / 2;
@@ -128,7 +130,7 @@ export function AuditChain({ theme, text }: ClipProps) {
                 <div style={{ width: 40, height: 40, borderRadius: 12, background: `${c}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <div style={{ width: 16, height: 16, borderRadius: "50%", background: c }} />
                 </div>
-                {text && <div style={{ fontSize: 20, color: p.muted }}>{tampered ? "edited" : hex(i)}</div>}
+                {text && <div style={{ fontSize: 20, color: tampered ? HIGH : p.muted }}>{tampered ? "edited" : hex(i)}</div>}
               </div>
             </Place>
           );
@@ -139,7 +141,13 @@ export function AuditChain({ theme, text }: ClipProps) {
       </Stage>
       {text && (
         <AbsoluteFill style={{ alignItems: "center", paddingTop: 80 }}>
-          <Caption theme={theme} title="Tamper-evident audit trail" sub="Every entry is hash-chained to the one before. Change one and the chain breaks." align="center" size={68} />
+          <Caption
+            theme={theme}
+            title={typeof title === "string" ? title : "Tamper-evident audit trail"}
+            sub={typeof sub === "string" ? sub : "Every entry is hash-chained to the one before. Change one and the chain breaks."}
+            align="center"
+            size={68}
+          />
         </AbsoluteFill>
       )}
     </AbsoluteFill>
@@ -251,10 +259,13 @@ export function ThemeSwitch({ theme, text }: ClipProps) {
 // ---------------------------------------------------------------------------
 // Outro: logo and the four verbs.
 
-export function Outro({ theme, text }: ClipProps) {
+const THANKS_AT = 96;
+
+export function Outro({ theme, text, thanks }: ClipProps) {
   const f = useCurrentFrame();
   const logo = useEnter(4, { damping: 16 });
   const verbs = ["Predict.", "Explain.", "Prepare.", "Communicate."];
+  const swap = thanks === true ? tween(f, [THANKS_AT, THANKS_AT + 24], [0, 1], EASE_IN_OUT) : 0;
   return (
     <AbsoluteFill>
       <Backdrop theme={theme} />
@@ -264,8 +275,11 @@ export function Outro({ theme, text }: ClipProps) {
         </div>
         {text && (
           <>
-            <div style={{ fontSize: 96, fontWeight: 650, letterSpacing: "-0.04em", color: PALETTE[theme].ink, opacity: tween(f, [16, 34], [0, 1]), transform: `translateY(${tween(f, [16, 34], [30, 0])}px)` }}>
-              AI Outage Concierge
+            <div style={{ position: "relative", fontSize: 96, fontWeight: 650, letterSpacing: "-0.04em", color: PALETTE[theme].ink, opacity: tween(f, [16, 34], [0, 1]), transform: `translateY(${tween(f, [16, 34], [30, 0])}px)` }}>
+              <span style={{ display: "inline-block", opacity: 1 - swap, transform: `translateY(${-swap * 40}px)`, filter: `blur(${swap * 10}px)` }}>AI Outage Concierge</span>
+              {swap > 0 && (
+                <span style={{ position: "absolute", left: 0, right: 0, textAlign: "center", opacity: swap, transform: `translateY(${(1 - swap) * 40}px)`, filter: `blur(${(1 - swap) * 10}px)` }}>Thank you</span>
+              )}
             </div>
             <div style={{ display: "flex", gap: 30, fontSize: 40, fontWeight: 500 }}>
               {verbs.map((v, i) => {
@@ -277,6 +291,7 @@ export function Outro({ theme, text }: ClipProps) {
                 );
               })}
             </div>
+            {thanks === true && <TeamLine theme={theme} delay={THANKS_AT + 18} style={{ fontSize: 36, marginTop: 10 }} />}
           </>
         )}
       </AbsoluteFill>
